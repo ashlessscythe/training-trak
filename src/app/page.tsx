@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { siteConfig } from "@/lib/config";
 
 export default function Home() {
   return (
@@ -9,7 +10,10 @@ export default function Home() {
         <div className="container mx-auto px-4">
           <div className="mx-auto max-w-3xl text-center">
             <h1 className="mb-8 text-4xl font-bold tracking-tight sm:text-6xl">
-              <span className="gradient-text">Training</span> Trak
+              <span className="gradient-text">
+                {siteConfig.name.split(" ")[0]}
+              </span>{" "}
+              {siteConfig.name.split(" ")[1]}
             </h1>
             <p className="mb-8 text-lg leading-8 text-muted-foreground">
               Comprehensive corporate training management and compliance
