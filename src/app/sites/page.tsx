@@ -1,176 +1,235 @@
-import { getServerSession } from "next-auth/next";
-import { redirect } from "next/navigation";
+"use client";
+
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import prisma from "@/lib/prisma";
-import { Role } from "@prisma/client";
+import { Button } from "@/components/ui/button";
+import { Site } from "@prisma/client";
+import { SiteDialog } from "@/components/site-dialog";
 
-async function getSites() {
-  return prisma.site.findMany({
-    include: {
-      users: {
-        select: {
-          id: true,
-          role: true,
-          trainings: {
-            select: {
-              status: true,
-            },
-          },
-        },
-      },
-    },
-    orderBy: {
-      name: "asc",
-    },
-  });
-}
-
-function getSiteStats(site: Awaited<ReturnType<typeof getSites>>[0]) {
-  const usersByRole = site.users.reduce((acc, user) => {
-    acc[user.role] = (acc[user.role] || 0) + 1;
-    return acc;
-  }, {} as Record<Role, number>);
-
-  const trainingStats = site.users.reduce(
-    (acc, user) => {
-      const userTrainings = user.trainings.length;
-      const completedTrainings = user.trainings.filter(
-        (t) => t.status === "APPROVED"
-      ).length;
-
-      acc.totalTrainings += userTrainings;
-      acc.completedTrainings += completedTrainings;
-
-      return acc;
-    },
-    { totalTrainings: 0, completedTrainings: 0 }
-  );
-
-  return {
-    totalUsers: site.users.length,
-    usersByRole,
-    trainingStats,
-    complianceRate: trainingStats.totalTrainings
-      ? Math.round(
-          (trainingStats.completedTrainings / trainingStats.totalTrainings) *
-            100
-        )
-      : 0,
+type SiteWithStats = Site & {
+  stats: {
+    totalUsers: number;
+    activeUsers: number;
+    totalDocuments: number;
+    totalSOPs: number;
+    completedTrainings: number;
   };
-}
+};
 
-export default async function SitesPage() {
-  const session = await getServerSession();
+export default function SitesPage() {
+  const [sites, setSites] = useState<SiteWithStats[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [selectedSite, setSelectedSite] = useState<SiteWithStats | undefined>();
 
-  if (!session?.user?.email) {
-    redirect("/auth/signin");
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const response = await fetch("/api/sites");
+        const data = await response.json();
+        setSites(data);
+      } catch (error) {
+        console.error("Failed to fetch sites:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  const handleCreateSite = async (data: any) => {
+    try {
+      const response = await fetch("/api/sites", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to create site");
+      }
+
+      setIsDialogOpen(false);
+      window.location.reload();
+    } catch (error: any) {
+      alert(error.message);
+    }
+  };
+
+  const handleUpdateSite = async (data: any) => {
+    try {
+      const response = await fetch("/api/sites", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to update site");
+      }
+
+      setIsDialogOpen(false);
+      setSelectedSite(undefined);
+      window.location.reload();
+    } catch (error: any) {
+      alert(error.message);
+    }
+  };
+
+  const handleDeleteSite = async (siteId: string) => {
+    if (!confirm("Are you sure you want to deactivate this site?")) return;
+
+    try {
+      const response = await fetch(`/api/sites?id=${siteId}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to delete site");
+      }
+
+      window.location.reload();
+    } catch (error: any) {
+      alert(error.message);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="container mx-auto py-10">
+        <div className="text-center">Loading...</div>
+      </div>
+    );
   }
-
-  const user = await prisma.user.findUnique({
-    where: { email: session.user.email },
-    select: { role: true },
-  });
-
-  if (!user || !["OWNER", "ADMIN"].includes(user.role)) {
-    redirect("/dashboard");
-  }
-
-  const sites = await getSites();
 
   return (
     <div className="container mx-auto py-10">
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold">Sites</h1>
+        <Button onClick={() => setIsDialogOpen(true)}>Create Site</Button>
       </div>
 
       <div className="grid gap-6">
-        {sites.map((site) => {
-          const stats = getSiteStats(site);
-
-          return (
-            <Card key={site.id}>
-              <CardHeader>
-                <div className="flex justify-between items-start">
-                  <div>
-                    <CardTitle>{site.name}</CardTitle>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Code: {site.code}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <span
-                      className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ${
-                        site.isActive
-                          ? "bg-green-50 text-green-700 ring-1 ring-inset ring-green-600/20"
-                          : "bg-red-50 text-red-700 ring-1 ring-inset ring-red-600/20"
-                      }`}
+        {sites.map((site) => (
+          <Card key={site.id}>
+            <CardHeader>
+              <div className="flex justify-between items-start">
+                <div>
+                  <CardTitle>{site.name}</CardTitle>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {site.code}
+                  </p>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <span
+                    className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ${
+                      site.isActive
+                        ? "bg-green-50 text-green-700 ring-1 ring-inset ring-green-600/20"
+                        : "bg-red-50 text-red-700 ring-1 ring-inset ring-red-600/20"
+                    }`}
+                  >
+                    {site.isActive ? "Active" : "Inactive"}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setSelectedSite(site);
+                      setIsDialogOpen(true);
+                    }}
+                  >
+                    Edit
+                  </Button>
+                  {site.isActive && (
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => handleDeleteSite(site.id)}
                     >
-                      {site.isActive ? "Active" : "Inactive"}
-                    </span>
-                  </div>
+                      Deactivate
+                    </Button>
+                  )}
                 </div>
-              </CardHeader>
-              <CardContent>
-                {site.description && (
-                  <p className="text-sm text-muted-foreground mb-4">
-                    {site.description}
-                  </p>
-                )}
-
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div>
-                    <h3 className="font-semibold mb-2">User Distribution</h3>
-                    <dl className="space-y-1 text-sm">
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <h3 className="font-semibold mb-2">Details</h3>
+                  <dl className="space-y-1 text-sm">
+                    {site.description && (
                       <div>
                         <dt className="inline text-muted-foreground">
-                          Total Users:
+                          Description:
                         </dt>
-                        <dd className="inline ml-1">{stats.totalUsers}</dd>
+                        <dd className="inline ml-1">{site.description}</dd>
                       </div>
-                      {Object.entries(stats.usersByRole)
-                        .sort(([a], [b]) => a.localeCompare(b))
-                        .map(([role, count]) => (
-                          <div key={role}>
-                            <dt className="inline text-muted-foreground">
-                              {role.charAt(0) + role.slice(1).toLowerCase()}:
-                            </dt>
-                            <dd className="inline ml-1">{count}</dd>
-                          </div>
-                        ))}
-                    </dl>
-                  </div>
-
-                  <div>
-                    <h3 className="font-semibold mb-2">Training Compliance</h3>
-                    <dl className="space-y-1 text-sm">
-                      <div>
-                        <dt className="inline text-muted-foreground">
-                          Progress:
-                        </dt>
-                        <dd className="inline ml-1">
-                          {stats.trainingStats.completedTrainings} /{" "}
-                          {stats.trainingStats.totalTrainings} (
-                          {stats.complianceRate}%)
-                        </dd>
-                      </div>
-                    </dl>
-                  </div>
+                    )}
+                    <div>
+                      <dt className="inline text-muted-foreground">Users:</dt>
+                      <dd className="inline ml-1">
+                        {site.stats.activeUsers} active /{" "}
+                        {site.stats.totalUsers} total
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="inline text-muted-foreground">
+                        Documents:
+                      </dt>
+                      <dd className="inline ml-1">
+                        {site.stats.totalDocuments}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="inline text-muted-foreground">SOPs:</dt>
+                      <dd className="inline ml-1">{site.stats.totalSOPs}</dd>
+                    </div>
+                    <div>
+                      <dt className="inline text-muted-foreground">
+                        Completed Trainings:
+                      </dt>
+                      <dd className="inline ml-1">
+                        {site.stats.completedTrainings}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="inline text-muted-foreground">
+                        Created on:
+                      </dt>
+                      <dd className="inline ml-1">
+                        {new Date(site.createdAt).toLocaleDateString()}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="inline text-muted-foreground">
+                        Last updated:
+                      </dt>
+                      <dd className="inline ml-1">
+                        {new Date(site.updatedAt).toLocaleDateString()}
+                      </dd>
+                    </div>
+                  </dl>
                 </div>
-
-                <div className="mt-4 text-sm text-muted-foreground">
-                  <p>
-                    Created: {new Date(site.createdAt).toLocaleDateString()}
-                  </p>
-                  <p>
-                    Last updated:{" "}
-                    {new Date(site.updatedAt).toLocaleDateString()}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
+              </div>
+            </CardContent>
+          </Card>
+        ))}
       </div>
+
+      <SiteDialog
+        isOpen={isDialogOpen}
+        onClose={() => {
+          setIsDialogOpen(false);
+          setSelectedSite(undefined);
+        }}
+        onSubmit={selectedSite ? handleUpdateSite : handleCreateSite}
+        site={selectedSite}
+        title={selectedSite ? "Edit Site" : "Create Site"}
+      />
     </div>
   );
 }

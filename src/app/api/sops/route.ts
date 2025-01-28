@@ -11,65 +11,39 @@ export async function GET() {
 
     const currentUser = await prisma.user.findUnique({
       where: { email: session.user.email },
-      select: { role: true },
+      select: { role: true, siteId: true },
     });
 
     if (!currentUser) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const sites = await prisma.site.findMany({
+    const sops = await prisma.sOP.findMany({
       include: {
-        _count: {
+        createdBy: {
           select: {
-            users: true,
+            name: true,
+            email: true,
           },
         },
-        users: {
-          include: {
-            _count: {
-              select: {
-                uploadedDocs: true,
-                createdSOPs: true,
-                trainings: {
-                  where: {
-                    status: "APPROVED",
-                  },
-                },
-              },
-            },
+        lastModifiedBy: {
+          select: {
+            name: true,
+            email: true,
           },
         },
       },
-      orderBy: {
-        name: "asc",
-      },
+      orderBy: [
+        {
+          name: "asc",
+        },
+        {
+          version: "desc",
+        },
+      ],
     });
 
-    // Transform the data to include aggregated stats
-    const sitesWithStats = sites.map((site) => ({
-      ...site,
-      stats: {
-        totalUsers: site._count.users,
-        activeUsers: site.users.filter((user) => user.isActive).length,
-        totalDocuments: site.users.reduce(
-          (sum, user) => sum + user._count.uploadedDocs,
-          0
-        ),
-        totalSOPs: site.users.reduce(
-          (sum, user) => sum + user._count.createdSOPs,
-          0
-        ),
-        completedTrainings: site.users.reduce(
-          (sum, user) => sum + user._count.trainings,
-          0
-        ),
-      },
-      // Remove the users array from the response to reduce payload size
-      users: undefined,
-    }));
-
-    return NextResponse.json(sitesWithStats);
+    return NextResponse.json(sops);
   } catch (error) {
     return NextResponse.json(
       { error: "Internal server error" },
@@ -87,45 +61,58 @@ export async function POST(req: NextRequest) {
 
     const currentUser = await prisma.user.findUnique({
       where: { email: session.user.email },
-      select: { role: true },
     });
 
-    if (!currentUser || !["OWNER", "ADMIN"].includes(currentUser.role)) {
+    if (
+      !currentUser ||
+      !["OWNER", "ADMIN", "SUPERVISOR"].includes(currentUser.role)
+    ) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const data = await req.json();
-    const { code, name, description } = data;
+    const { name, description, version, content, requiredRoles } = data;
 
     // Validate required fields
-    if (!code || !name) {
+    if (!name || !version) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
       );
     }
 
-    const site = await prisma.site.create({
+    const sop = await prisma.sOP.create({
       data: {
-        code,
         name,
         description,
+        version,
+        content,
+        requiredRoles,
         isActive: true,
+        createdById: currentUser.id,
+        lastModifiedById: currentUser.id,
       },
       include: {
-        _count: {
+        createdBy: {
           select: {
-            users: true,
+            name: true,
+            email: true,
+          },
+        },
+        lastModifiedBy: {
+          select: {
+            name: true,
+            email: true,
           },
         },
       },
     });
 
-    return NextResponse.json(site);
+    return NextResponse.json(sop);
   } catch (error: any) {
     if (error.code === "P2002") {
       return NextResponse.json(
-        { error: "Site code already exists" },
+        { error: "SOP with this name and version already exists" },
         { status: 400 }
       );
     }
@@ -145,28 +132,34 @@ export async function PUT(req: NextRequest) {
 
     const currentUser = await prisma.user.findUnique({
       where: { email: session.user.email },
-      select: { role: true },
     });
 
-    if (!currentUser || !["OWNER", "ADMIN"].includes(currentUser.role)) {
+    if (
+      !currentUser ||
+      !["OWNER", "ADMIN", "SUPERVISOR"].includes(currentUser.role)
+    ) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const data = await req.json();
-    const { id, code, name, description, isActive } = data;
+    const { id, name, description, version, content, requiredRoles, isActive } =
+      data;
 
     if (!id) {
       return NextResponse.json(
-        { error: "Site ID is required" },
+        { error: "SOP ID is required" },
         { status: 400 }
       );
     }
 
     const updateData: any = {
-      code,
       name,
       description,
+      version,
+      content,
+      requiredRoles,
       isActive,
+      lastModifiedById: currentUser.id,
     };
 
     // Remove undefined values
@@ -174,23 +167,30 @@ export async function PUT(req: NextRequest) {
       (key) => updateData[key] === undefined && delete updateData[key]
     );
 
-    const site = await prisma.site.update({
+    const sop = await prisma.sOP.update({
       where: { id },
       data: updateData,
       include: {
-        _count: {
+        createdBy: {
           select: {
-            users: true,
+            name: true,
+            email: true,
+          },
+        },
+        lastModifiedBy: {
+          select: {
+            name: true,
+            email: true,
           },
         },
       },
     });
 
-    return NextResponse.json(site);
+    return NextResponse.json(sop);
   } catch (error: any) {
     if (error.code === "P2002") {
       return NextResponse.json(
-        { error: "Site code already exists" },
+        { error: "SOP with this name and version already exists" },
         { status: 400 }
       );
     }
@@ -210,7 +210,6 @@ export async function DELETE(req: NextRequest) {
 
     const currentUser = await prisma.user.findUnique({
       where: { email: session.user.email },
-      select: { role: true },
     });
 
     if (!currentUser || !["OWNER", "ADMIN"].includes(currentUser.role)) {
@@ -222,18 +221,18 @@ export async function DELETE(req: NextRequest) {
 
     if (!id) {
       return NextResponse.json(
-        { error: "Site ID is required" },
+        { error: "SOP ID is required" },
         { status: 400 }
       );
     }
 
-    // Instead of deleting, we'll deactivate the site
-    const site = await prisma.site.update({
+    // Instead of deleting, we'll deactivate the SOP
+    const sop = await prisma.sOP.update({
       where: { id },
       data: { isActive: false },
     });
 
-    return NextResponse.json(site);
+    return NextResponse.json(sop);
   } catch (error) {
     return NextResponse.json(
       { error: "Internal server error" },

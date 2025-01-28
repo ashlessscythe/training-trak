@@ -1,6 +1,7 @@
 import { getServerSession } from "next-auth/next";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { hash } from "bcrypt";
 
 export async function GET() {
   try {
@@ -14,62 +15,45 @@ export async function GET() {
       select: { role: true },
     });
 
-    if (!currentUser) {
+    if (!currentUser || !["OWNER", "ADMIN"].includes(currentUser.role)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const sites = await prisma.site.findMany({
+    const users = await prisma.user.findMany({
       include: {
-        _count: {
+        site: true,
+        trainings: {
           select: {
-            users: true,
+            status: true,
           },
         },
-        users: {
-          include: {
-            _count: {
-              select: {
-                uploadedDocs: true,
-                createdSOPs: true,
-                trainings: {
-                  where: {
-                    status: "APPROVED",
-                  },
-                },
-              },
-            },
+        uploadedDocs: {
+          select: {
+            id: true,
+          },
+        },
+        createdSOPs: {
+          select: {
+            id: true,
           },
         },
       },
-      orderBy: {
-        name: "asc",
-      },
+      orderBy: [
+        {
+          site: {
+            name: "asc",
+          },
+        },
+        {
+          role: "asc",
+        },
+        {
+          name: "asc",
+        },
+      ],
     });
 
-    // Transform the data to include aggregated stats
-    const sitesWithStats = sites.map((site) => ({
-      ...site,
-      stats: {
-        totalUsers: site._count.users,
-        activeUsers: site.users.filter((user) => user.isActive).length,
-        totalDocuments: site.users.reduce(
-          (sum, user) => sum + user._count.uploadedDocs,
-          0
-        ),
-        totalSOPs: site.users.reduce(
-          (sum, user) => sum + user._count.createdSOPs,
-          0
-        ),
-        completedTrainings: site.users.reduce(
-          (sum, user) => sum + user._count.trainings,
-          0
-        ),
-      },
-      // Remove the users array from the response to reduce payload size
-      users: undefined,
-    }));
-
-    return NextResponse.json(sitesWithStats);
+    return NextResponse.json(users);
   } catch (error) {
     return NextResponse.json(
       { error: "Internal server error" },
@@ -87,7 +71,7 @@ export async function POST(req: NextRequest) {
 
     const currentUser = await prisma.user.findUnique({
       where: { email: session.user.email },
-      select: { role: true },
+      select: { role: true, siteId: true },
     });
 
     if (!currentUser || !["OWNER", "ADMIN"].includes(currentUser.role)) {
@@ -95,37 +79,35 @@ export async function POST(req: NextRequest) {
     }
 
     const data = await req.json();
-    const { code, name, description } = data;
+    const { email, name, password, role, siteId } = data;
 
     // Validate required fields
-    if (!code || !name) {
+    if (!email || !name || !password || !role || !siteId) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
       );
     }
 
-    const site = await prisma.site.create({
+    // Hash password
+    const hashedPassword = await hash(password, 10);
+
+    const user = await prisma.user.create({
       data: {
-        code,
+        email,
         name,
-        description,
+        password: hashedPassword,
+        role,
+        siteId,
         isActive: true,
-      },
-      include: {
-        _count: {
-          select: {
-            users: true,
-          },
-        },
       },
     });
 
-    return NextResponse.json(site);
+    return NextResponse.json(user);
   } catch (error: any) {
     if (error.code === "P2002") {
       return NextResponse.json(
-        { error: "Site code already exists" },
+        { error: "Email already exists" },
         { status: 400 }
       );
     }
@@ -153,44 +135,43 @@ export async function PUT(req: NextRequest) {
     }
 
     const data = await req.json();
-    const { id, code, name, description, isActive } = data;
+    const { id, email, name, role, siteId, isActive, password } = data;
 
     if (!id) {
       return NextResponse.json(
-        { error: "Site ID is required" },
+        { error: "User ID is required" },
         { status: 400 }
       );
     }
 
     const updateData: any = {
-      code,
+      email,
       name,
-      description,
+      role,
+      siteId,
       isActive,
     };
+
+    // Only update password if provided
+    if (password) {
+      updateData.password = await hash(password, 10);
+    }
 
     // Remove undefined values
     Object.keys(updateData).forEach(
       (key) => updateData[key] === undefined && delete updateData[key]
     );
 
-    const site = await prisma.site.update({
+    const user = await prisma.user.update({
       where: { id },
       data: updateData,
-      include: {
-        _count: {
-          select: {
-            users: true,
-          },
-        },
-      },
     });
 
-    return NextResponse.json(site);
+    return NextResponse.json(user);
   } catch (error: any) {
     if (error.code === "P2002") {
       return NextResponse.json(
-        { error: "Site code already exists" },
+        { error: "Email already exists" },
         { status: 400 }
       );
     }
@@ -222,18 +203,18 @@ export async function DELETE(req: NextRequest) {
 
     if (!id) {
       return NextResponse.json(
-        { error: "Site ID is required" },
+        { error: "User ID is required" },
         { status: 400 }
       );
     }
 
-    // Instead of deleting, we'll deactivate the site
-    const site = await prisma.site.update({
+    // Instead of deleting, we'll deactivate the user
+    const user = await prisma.user.update({
       where: { id },
       data: { isActive: false },
     });
 
-    return NextResponse.json(site);
+    return NextResponse.json(user);
   } catch (error) {
     return NextResponse.json(
       { error: "Internal server error" },

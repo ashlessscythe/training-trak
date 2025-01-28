@@ -1,13 +1,30 @@
 import { withAuth } from "next-auth/middleware";
+import { NextResponse } from "next/server";
 
 export default withAuth(
-  function middleware(req) {
-    const { token } = req.nextauth;
-    const path = req.nextUrl.pathname;
+  async function middleware(req) {
+    const token = req.nextauth.token;
+    const isAuth = !!token;
+    const isAuthPage =
+      req.nextUrl.pathname.startsWith("/auth/signin") ||
+      req.nextUrl.pathname.startsWith("/auth/signup");
 
-    // Only redirect pending users if they try to access non-auth routes
-    if (token?.role === "PENDING" && !path.startsWith("/auth/")) {
-      return Response.redirect(new URL("/auth/pending", req.url));
+    if (isAuthPage) {
+      if (isAuth) {
+        return NextResponse.redirect(new URL("/dashboard", req.url));
+      }
+      return null;
+    }
+
+    if (!isAuth) {
+      let from = req.nextUrl.pathname;
+      if (req.nextUrl.search) {
+        from += req.nextUrl.search;
+      }
+
+      return NextResponse.redirect(
+        new URL(`/auth/signin?from=${encodeURIComponent(from)}`, req.url)
+      );
     }
   },
   {
@@ -17,7 +34,13 @@ export default withAuth(
   }
 );
 
-// Only protect app routes, allow access to landing page and auth routes
 export const config = {
-  matcher: ["/app/:path*"],
+  matcher: [
+    "/dashboard/:path*",
+    "/users/:path*",
+    "/sites/:path*",
+    "/documents/:path*",
+    "/sops/:path*",
+    "/training/:path*",
+  ],
 };

@@ -1,44 +1,17 @@
-import { getServerSession } from "next-auth/next";
-import { redirect } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import prisma from "@/lib/prisma";
-import { Role } from "@prisma/client";
+"use client";
 
-async function getUsers() {
-  return prisma.user.findMany({
-    include: {
-      site: true,
-      trainings: {
-        select: {
-          status: true,
-        },
-      },
-      uploadedDocs: {
-        select: {
-          id: true,
-        },
-      },
-      createdSOPs: {
-        select: {
-          id: true,
-        },
-      },
-    },
-    orderBy: [
-      {
-        site: {
-          name: "asc",
-        },
-      },
-      {
-        role: "asc",
-      },
-      {
-        name: "asc",
-      },
-    ],
-  });
-}
+import { useEffect, useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Role, Site, User } from "@prisma/client";
+import { UserDialog } from "@/components/user-dialog";
+
+type UserWithRelations = User & {
+  site: Site;
+  trainings: { status: string }[];
+  uploadedDocs: { id: string }[];
+  createdSOPs: { id: string }[];
+};
 
 function formatRole(role: Role) {
   return role
@@ -47,7 +20,7 @@ function formatRole(role: Role) {
     .join(" ");
 }
 
-function getUserStats(user: Awaited<ReturnType<typeof getUsers>>[0]) {
+function getUserStats(user: UserWithRelations) {
   const totalTrainings = user.trainings.length;
   const completedTrainings = user.trainings.filter(
     (t) => t.status === "APPROVED"
@@ -66,28 +39,107 @@ function getUserStats(user: Awaited<ReturnType<typeof getUsers>>[0]) {
   };
 }
 
-export default async function UsersPage() {
-  const session = await getServerSession();
+export default function UsersPage() {
+  const [users, setUsers] = useState<UserWithRelations[]>([]);
+  const [sites, setSites] = useState<Site[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<
+    UserWithRelations | undefined
+  >();
 
-  if (!session?.user?.email) {
-    redirect("/auth/signin");
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [usersRes, sitesRes] = await Promise.all([
+          fetch("/api/users").then((res) => res.json()),
+          fetch("/api/sites").then((res) => res.json()),
+        ]);
+        setUsers(usersRes);
+        setSites(sitesRes);
+      } catch (error) {
+        console.error("Failed to fetch data:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  const handleCreateUser = async (data: any) => {
+    try {
+      const response = await fetch("/api/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to create user");
+      }
+
+      setIsDialogOpen(false);
+      window.location.reload();
+    } catch (error: any) {
+      alert(error.message);
+    }
+  };
+
+  const handleUpdateUser = async (data: any) => {
+    try {
+      const response = await fetch("/api/users", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to update user");
+      }
+
+      setIsDialogOpen(false);
+      setSelectedUser(undefined);
+      window.location.reload();
+    } catch (error: any) {
+      alert(error.message);
+    }
+  };
+
+  const handleDeleteUser = async (userId: string) => {
+    if (!confirm("Are you sure you want to deactivate this user?")) return;
+
+    try {
+      const response = await fetch(`/api/users?id=${userId}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to delete user");
+      }
+
+      window.location.reload();
+    } catch (error: any) {
+      alert(error.message);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="container mx-auto py-10">
+        <div className="text-center">Loading...</div>
+      </div>
+    );
   }
-
-  const user = await prisma.user.findUnique({
-    where: { email: session.user.email },
-    select: { role: true },
-  });
-
-  if (!user || !["OWNER", "ADMIN"].includes(user.role)) {
-    redirect("/dashboard");
-  }
-
-  const users = await getUsers();
 
   return (
     <div className="container mx-auto py-10">
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold">Users</h1>
+        <Button onClick={() => setIsDialogOpen(true)}>Create User</Button>
       </div>
 
       <div className="grid gap-6">
@@ -104,7 +156,7 @@ export default async function UsersPage() {
                       {user.email}
                     </p>
                   </div>
-                  <div className="text-right">
+                  <div className="flex items-center space-x-2">
                     <span
                       className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ${
                         user.isActive
@@ -114,6 +166,25 @@ export default async function UsersPage() {
                     >
                       {user.isActive ? "Active" : "Inactive"}
                     </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedUser(user);
+                        setIsDialogOpen(true);
+                      }}
+                    >
+                      Edit
+                    </Button>
+                    {user.isActive && (
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => handleDeleteUser(user.id)}
+                      >
+                        Deactivate
+                      </Button>
+                    )}
                   </div>
                 </div>
               </CardHeader>
@@ -173,6 +244,18 @@ export default async function UsersPage() {
           );
         })}
       </div>
+
+      <UserDialog
+        isOpen={isDialogOpen}
+        onClose={() => {
+          setIsDialogOpen(false);
+          setSelectedUser(undefined);
+        }}
+        onSubmit={selectedUser ? handleUpdateUser : handleCreateUser}
+        sites={sites}
+        user={selectedUser}
+        title={selectedUser ? "Edit User" : "Create User"}
+      />
     </div>
   );
 }

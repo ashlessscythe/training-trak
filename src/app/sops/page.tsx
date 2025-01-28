@@ -1,169 +1,265 @@
-import { getServerSession } from "next-auth/next";
-import { redirect } from "next/navigation";
+"use client";
+
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import prisma from "@/lib/prisma";
+import { Button } from "@/components/ui/button";
+import { Role, SOP } from "@prisma/client";
+import { SOPDialog } from "@/components/sop-dialog";
 
-async function getSOPs(userId: string) {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { role: true },
-  });
+type SOPWithRelations = SOP & {
+  createdBy: {
+    name: string;
+    email: string;
+  };
+  lastModifiedBy: {
+    name: string;
+    email: string;
+  };
+};
 
-  return prisma.sOP.findMany({
-    orderBy: {
-      updatedAt: "desc",
-    },
-    include: {
-      documents: {
-        select: {
-          id: true,
-          name: true,
-          type: true,
-        },
-      },
-      trainings: {
-        where: {
-          userId: userId,
-        },
-        select: {
-          status: true,
-          completedAt: true,
-          approvedAt: true,
-        },
-      },
-      createdBy: {
-        select: {
-          name: true,
-        },
-      },
-      lastModifiedBy: {
-        select: {
-          name: true,
-        },
-      },
-    },
-  });
+function formatRole(role: Role) {
+  return role
+    .split("_")
+    .map((word) => word.charAt(0) + word.slice(1).toLowerCase())
+    .join(" ");
 }
 
-export default async function SOPsPage() {
-  const session = await getServerSession();
+export default function SOPsPage() {
+  const [sops, setSOPs] = useState<SOPWithRelations[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [selectedSOP, setSelectedSOP] = useState<
+    SOPWithRelations | undefined
+  >();
 
-  if (!session?.user?.email) {
-    redirect("/auth/signin");
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const response = await fetch("/api/sops");
+        const data = await response.json();
+        setSOPs(data);
+      } catch (error) {
+        console.error("Failed to fetch SOPs:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  const handleCreateSOP = async (data: any) => {
+    try {
+      const response = await fetch("/api/sops", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to create SOP");
+      }
+
+      setIsDialogOpen(false);
+      window.location.reload();
+    } catch (error: any) {
+      alert(error.message);
+    }
+  };
+
+  const handleUpdateSOP = async (data: any) => {
+    try {
+      const response = await fetch("/api/sops", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to update SOP");
+      }
+
+      setIsDialogOpen(false);
+      setSelectedSOP(undefined);
+      window.location.reload();
+    } catch (error: any) {
+      alert(error.message);
+    }
+  };
+
+  const handleDeleteSOP = async (sopId: string) => {
+    if (!confirm("Are you sure you want to deactivate this SOP?")) return;
+
+    try {
+      const response = await fetch(`/api/sops?id=${sopId}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to delete SOP");
+      }
+
+      window.location.reload();
+    } catch (error: any) {
+      alert(error.message);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="container mx-auto py-10">
+        <div className="text-center">Loading...</div>
+      </div>
+    );
   }
-
-  const user = await prisma.user.findUnique({
-    where: { email: session.user.email },
-  });
-
-  if (!user) {
-    redirect("/auth/signin");
-  }
-
-  const sops = await getSOPs(user.id);
 
   return (
     <div className="container mx-auto py-10">
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold">Standard Operating Procedures</h1>
+        <Button onClick={() => setIsDialogOpen(true)}>Create SOP</Button>
       </div>
 
       <div className="grid gap-6">
-        {sops.map((sop) => {
-          const training = sop.trainings[0];
-          const status = training?.status || "NOT_STARTED";
-
-          return (
-            <Card key={sop.id}>
-              <CardHeader>
-                <div className="flex justify-between items-start">
-                  <div>
-                    <CardTitle>{sop.name}</CardTitle>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Version {sop.version}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <span
-                      className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ${
-                        status === "APPROVED"
-                          ? "bg-green-50 text-green-700 ring-1 ring-inset ring-green-600/20"
-                          : status === "COMPLETED"
-                          ? "bg-yellow-50 text-yellow-700 ring-1 ring-inset ring-yellow-600/20"
-                          : "bg-gray-50 text-gray-700 ring-1 ring-inset ring-gray-600/20"
-                      }`}
-                    >
-                      {status.replace("_", " ")}
-                    </span>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {sop.description && (
-                  <p className="text-sm text-muted-foreground mb-4">
-                    {sop.description}
+        {sops.map((sop) => (
+          <Card key={sop.id}>
+            <CardHeader>
+              <div className="flex justify-between items-start">
+                <div>
+                  <CardTitle>{sop.name}</CardTitle>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Version {sop.version}
                   </p>
-                )}
-
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div>
-                    <h3 className="font-semibold mb-2">Documents</h3>
-                    <ul className="space-y-1">
-                      {sop.documents.map((doc) => (
-                        <li key={doc.id} className="text-sm">
-                          {doc.name} ({doc.type.replace("_", " ")})
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-
-                  <div>
-                    <h3 className="font-semibold mb-2">Details</h3>
-                    <dl className="space-y-1 text-sm">
+                </div>
+                <div className="flex items-center space-x-2">
+                  <span
+                    className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ${
+                      sop.isActive
+                        ? "bg-green-50 text-green-700 ring-1 ring-inset ring-green-600/20"
+                        : "bg-red-50 text-red-700 ring-1 ring-inset ring-red-600/20"
+                    }`}
+                  >
+                    {sop.isActive ? "Active" : "Inactive"}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setSelectedSOP(sop);
+                      setIsDialogOpen(true);
+                    }}
+                  >
+                    Edit
+                  </Button>
+                  {sop.isActive && (
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => handleDeleteSOP(sop.id)}
+                    >
+                      Deactivate
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <h3 className="font-semibold mb-2">Details</h3>
+                  <dl className="space-y-1 text-sm">
+                    {sop.description && (
                       <div>
                         <dt className="inline text-muted-foreground">
-                          Created by:
+                          Description:
                         </dt>
-                        <dd className="inline ml-1">{sop.createdBy.name}</dd>
+                        <dd className="inline ml-1">{sop.description}</dd>
                       </div>
+                    )}
+                    <div>
+                      <dt className="inline text-muted-foreground">
+                        Required roles:
+                      </dt>
+                      <dd className="inline ml-1">
+                        {sop.requiredRoles.map(formatRole).join(", ")}
+                      </dd>
+                    </div>
+                    {sop.content && (
                       <div>
                         <dt className="inline text-muted-foreground">
-                          Last modified by:
+                          Content:
                         </dt>
                         <dd className="inline ml-1">
-                          {sop.lastModifiedBy.name}
+                          {sop.content.startsWith("http") ? (
+                            <a
+                              href={sop.content}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:underline"
+                            >
+                              View Content
+                            </a>
+                          ) : (
+                            sop.content
+                          )}
                         </dd>
                       </div>
-                      {training?.completedAt && (
-                        <div>
-                          <dt className="inline text-muted-foreground">
-                            Completed:
-                          </dt>
-                          <dd className="inline ml-1">
-                            {new Date(
-                              training.completedAt
-                            ).toLocaleDateString()}
-                          </dd>
-                        </div>
-                      )}
-                      {training?.approvedAt && (
-                        <div>
-                          <dt className="inline text-muted-foreground">
-                            Approved:
-                          </dt>
-                          <dd className="inline ml-1">
-                            {new Date(training.approvedAt).toLocaleDateString()}
-                          </dd>
-                        </div>
-                      )}
-                    </dl>
-                  </div>
+                    )}
+                  </dl>
                 </div>
-              </CardContent>
-            </Card>
-          );
-        })}
+
+                <div>
+                  <h3 className="font-semibold mb-2">History</h3>
+                  <dl className="space-y-1 text-sm">
+                    <div>
+                      <dt className="inline text-muted-foreground">
+                        Created by:
+                      </dt>
+                      <dd className="inline ml-1">{sop.createdBy.name}</dd>
+                    </div>
+                    <div>
+                      <dt className="inline text-muted-foreground">
+                        Created on:
+                      </dt>
+                      <dd className="inline ml-1">
+                        {new Date(sop.createdAt).toLocaleDateString()}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="inline text-muted-foreground">
+                        Last modified by:
+                      </dt>
+                      <dd className="inline ml-1">{sop.lastModifiedBy.name}</dd>
+                    </div>
+                    <div>
+                      <dt className="inline text-muted-foreground">
+                        Last modified on:
+                      </dt>
+                      <dd className="inline ml-1">
+                        {new Date(sop.updatedAt).toLocaleDateString()}
+                      </dd>
+                    </div>
+                  </dl>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
       </div>
+
+      <SOPDialog
+        isOpen={isDialogOpen}
+        onClose={() => {
+          setIsDialogOpen(false);
+          setSelectedSOP(undefined);
+        }}
+        onSubmit={selectedSOP ? handleUpdateSOP : handleCreateSOP}
+        sop={selectedSOP}
+        title={selectedSOP ? "Edit SOP" : "Create SOP"}
+      />
     </div>
   );
 }
