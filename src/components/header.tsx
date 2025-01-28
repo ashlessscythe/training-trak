@@ -6,6 +6,7 @@ import { useSession, signOut } from "next-auth/react";
 import Link from "next/link";
 import { siteConfig } from "@/lib/config";
 import { useState } from "react";
+import { Nav } from "./nav";
 
 export function Header() {
   const { data: session } = useSession();
@@ -13,21 +14,24 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container mx-auto flex h-16 items-center justify-between px-4">
+      <div className="container mx-auto flex h-16 items-center space-x-4 px-4">
         <Link href="/" className="text-xl font-bold hover:opacity-80">
           <span className="gradient-text">{siteConfig.name.split(" ")[0]}</span>{" "}
           {siteConfig.name.split(" ")[1]}
         </Link>
-        <nav className="hidden md:flex items-center space-x-1 flex-1 justify-end">
+
+        {/* Main navigation */}
+        {session && (
+          <div className="hidden md:flex flex-1">
+            <Nav />
+          </div>
+        )}
+
+        {/* Right side items */}
+        <div className="flex items-center space-x-4 ml-auto">
           {session ? (
             <>
-              <Button variant="link" size="sm" asChild>
-                <Link href="/dashboard">Dashboard</Link>
-              </Button>
-              <Button variant="link" size="sm" asChild>
-                <Link href="/trainings">Trainings</Link>
-              </Button>
-              <span className="text-sm text-muted-foreground px-2">
+              <span className="hidden md:inline text-sm text-muted-foreground">
                 {session.user?.name}
               </span>
               <Button variant="outline" size="sm" onClick={() => signOut()}>
@@ -47,8 +51,6 @@ export function Header() {
               </Button>
             </>
           )}
-        </nav>
-        <div className="flex items-center space-x-2">
           <ThemeToggle />
           <Button
             variant="outline"
@@ -77,64 +79,36 @@ export function Header() {
       {/* Mobile menu */}
       {mobileMenuOpen && (
         <div className="md:hidden border-t bg-background">
-          <div className="container py-4 px-4 space-y-2">
+          <div className="container py-4 px-4">
             {session ? (
               <>
-                <Button
-                  variant="link"
-                  size="sm"
-                  asChild
-                  className="w-full text-right"
-                >
-                  <Link href="/dashboard">Dashboard</Link>
-                </Button>
-                <Button
-                  variant="link"
-                  size="sm"
-                  asChild
-                  className="w-full text-right"
-                >
-                  <Link href="/trainings">Trainings</Link>
-                </Button>
-                <div className="text-sm text-muted-foreground px-2 py-1 text-right">
-                  {session.user?.name}
+                <Nav />
+                <div className="mt-4 pt-4 border-t">
+                  <div className="text-sm text-muted-foreground px-2 py-1">
+                    {session.user?.name}
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => signOut()}
+                    className="w-full mt-2"
+                  >
+                    Sign Out
+                  </Button>
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => signOut()}
-                  className="w-full text-right"
-                >
-                  Sign Out
-                </Button>
               </>
             ) : (
-              <>
-                <Button
-                  variant="link"
-                  size="sm"
-                  asChild
-                  className="w-full text-right"
-                >
+              <div className="space-y-2">
+                <Button variant="link" size="sm" asChild className="w-full">
                   <Link href="#features">Features</Link>
                 </Button>
-                <Button
-                  variant="link"
-                  size="sm"
-                  asChild
-                  className="w-full text-right"
-                >
+                <Button variant="link" size="sm" asChild className="w-full">
                   <Link href="/auth/signup">Sign Up</Link>
                 </Button>
-                <Button
-                  variant="default"
-                  size="sm"
-                  asChild
-                  className="w-full text-right"
-                >
+                <Button variant="default" size="sm" asChild className="w-full">
                   <Link href="/auth/signin">Sign In</Link>
                 </Button>
-              </>
+              </div>
             )}
           </div>
         </div>
