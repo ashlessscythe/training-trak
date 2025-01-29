@@ -24,6 +24,7 @@ export async function GET() {
           select: {
             name: true,
             email: true,
+            siteId: true,
           },
         },
         sop: {
@@ -89,6 +90,7 @@ export async function POST(req: NextRequest) {
           select: {
             name: true,
             email: true,
+            siteId: true,
           },
         },
         sop: {
@@ -169,6 +171,7 @@ export async function PUT(req: NextRequest) {
           select: {
             name: true,
             email: true,
+            siteId: true,
           },
         },
         sop: {

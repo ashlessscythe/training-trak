@@ -1,71 +1,153 @@
-import { getServerSession } from "next-auth/next";
+"use client";
+
+import { useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
 import { redirect } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import prisma from "@/lib/prisma";
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { TrainingStatus } from "@prisma/client";
 
-async function getTrainingData(userId: string) {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { role: true },
-  });
-
-  // Get all training progress for the user
-  const trainings = await prisma.trainingProgress.findMany({
-    where: {
-      OR: [
-        { userId }, // Their own trainings
-        ...(["ADMIN", "SUPERVISOR"].includes(user?.role || "")
-          ? [{ status: TrainingStatus.COMPLETED, approvedById: null }] // Pending approvals for admins/supervisors
-          : []),
-      ],
-    },
-    include: {
-      sop: true,
-      user: true,
-      approvedBy: true,
-    },
-    orderBy: [
-      {
-        status: "asc",
-      },
-      {
-        updatedAt: "desc",
-      },
-    ],
-  });
-
-  return {
-    trainings,
-    canApprove: ["ADMIN", "SUPERVISOR"].includes(user?.role || ""),
+type Training = {
+  id: string;
+  status: TrainingStatus;
+  completedAt: Date | null;
+  approvedAt: Date | null;
+  notes: string | null;
+  updatedAt: Date;
+  sop: {
+    name: string;
+    version: string;
+    description: string | null;
   };
-}
+  user: {
+    name: string;
+  };
+  approvedBy: {
+    name: string;
+  } | null;
+};
 
-export default async function TrainingPage() {
-  const session = await getServerSession();
+export default function TrainingPage() {
+  const { data: session, status } = useSession();
+  const [trainings, setTrainings] = useState<Training[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [statusFilter, setStatusFilter] = useState<TrainingStatus | "ALL">(
+    "ALL"
+  );
+  const [sortBy, setSortBy] = useState<"status" | "date" | "name">("date");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
-  if (!session?.user?.email) {
-    redirect("/auth/signin");
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      redirect("/auth/signin");
+    }
+
+    const fetchData = async () => {
+      try {
+        const response = await fetch("/api/trainings");
+        const data = await response.json();
+        setTrainings(data);
+      } catch (error) {
+        console.error("Failed to fetch trainings:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    if (session?.user?.email) {
+      fetchData();
+    }
+  }, [session, status]);
+
+  // Filter and sort trainings
+  const filteredAndSortedTrainings = trainings
+    .filter((training) =>
+      statusFilter === "ALL" ? true : training.status === statusFilter
+    )
+    .sort((a, b) => {
+      switch (sortBy) {
+        case "status":
+          return sortOrder === "asc"
+            ? a.status.localeCompare(b.status)
+            : b.status.localeCompare(a.status);
+        case "date":
+          const dateA = new Date(a.updatedAt).getTime();
+          const dateB = new Date(b.updatedAt).getTime();
+          return sortOrder === "asc" ? dateA - dateB : dateB - dateA;
+        case "name":
+          return sortOrder === "asc"
+            ? a.sop.name.localeCompare(b.sop.name)
+            : b.sop.name.localeCompare(a.sop.name);
+        default:
+          return 0;
+      }
+    });
+
+  if (isLoading) {
+    return (
+      <div className="container mx-auto py-10">
+        <div className="text-center">Loading...</div>
+      </div>
+    );
   }
-
-  const user = await prisma.user.findUnique({
-    where: { email: session.user.email },
-  });
-
-  if (!user) {
-    redirect("/auth/signin");
-  }
-
-  const { trainings, canApprove } = await getTrainingData(user.id);
 
   return (
     <div className="container mx-auto py-10">
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold">Training Progress</h1>
+        <div className="flex gap-4">
+          <Select
+            value={statusFilter}
+            onValueChange={(value) =>
+              setStatusFilter(value as TrainingStatus | "ALL")
+            }
+          >
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Filter by status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">All Statuses</SelectItem>
+              <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
+              <SelectItem value="COMPLETED">Completed</SelectItem>
+              <SelectItem value="APPROVED">Approved</SelectItem>
+              <SelectItem value="REJECTED">Rejected</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select
+            value={sortBy}
+            onValueChange={(value) =>
+              setSortBy(value as "status" | "date" | "name")
+            }
+          >
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Sort by" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="date">Date Modified</SelectItem>
+              <SelectItem value="status">Status</SelectItem>
+              <SelectItem value="name">SOP Name</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Button
+            variant="outline"
+            onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
+          >
+            {sortOrder === "asc" ? "↑" : "↓"}
+          </Button>
+        </div>
       </div>
 
       <div className="grid gap-6">
-        {trainings.map((training) => (
+        {filteredAndSortedTrainings.map((training) => (
           <Card key={training.id}>
             <CardHeader>
               <div className="flex justify-between items-start">

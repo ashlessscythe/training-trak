@@ -5,6 +5,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Role, SOP } from "@prisma/client";
 import { SOPDialog } from "@/components/sop-dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 type SOPWithRelations = SOP & {
   createdBy: {
@@ -31,6 +38,12 @@ export default function SOPsPage() {
   const [selectedSOP, setSelectedSOP] = useState<
     SOPWithRelations | undefined
   >();
+  const [statusFilter, setStatusFilter] = useState<
+    "ALL" | "ACTIVE" | "INACTIVE"
+  >("ALL");
+  const [roleFilter, setRoleFilter] = useState<Role | "ALL">("ALL");
+  const [sortBy, setSortBy] = useState<"name" | "version" | "date">("date");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
   useEffect(() => {
     const fetchData = async () => {
@@ -127,131 +140,219 @@ export default function SOPsPage() {
         <Button onClick={() => setIsDialogOpen(true)}>Create SOP</Button>
       </div>
 
+      <div className="flex justify-between items-center mb-4">
+        <div className="flex gap-4">
+          <Select
+            value={statusFilter}
+            onValueChange={(value) =>
+              setStatusFilter(value as "ALL" | "ACTIVE" | "INACTIVE")
+            }
+          >
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Filter by status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">All Statuses</SelectItem>
+              <SelectItem value="ACTIVE">Active</SelectItem>
+              <SelectItem value="INACTIVE">Inactive</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select
+            value={roleFilter}
+            onValueChange={(value) => setRoleFilter(value as Role | "ALL")}
+          >
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Filter by role" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">All Roles</SelectItem>
+              <SelectItem value="SITE_ADMIN">Site Admin</SelectItem>
+              <SelectItem value="SITE_MANAGER">Site Manager</SelectItem>
+              <SelectItem value="TRAINER">Trainer</SelectItem>
+              <SelectItem value="TRAINEE">Trainee</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select
+            value={sortBy}
+            onValueChange={(value) =>
+              setSortBy(value as "name" | "version" | "date")
+            }
+          >
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Sort by" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="date">Date Modified</SelectItem>
+              <SelectItem value="name">Name</SelectItem>
+              <SelectItem value="version">Version</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Button
+            variant="outline"
+            onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
+          >
+            {sortOrder === "asc" ? "↑" : "↓"}
+          </Button>
+        </div>
+      </div>
+
       <div className="grid gap-6">
-        {sops.map((sop) => (
-          <Card key={sop.id}>
-            <CardHeader>
-              <div className="flex justify-between items-start">
-                <div>
-                  <CardTitle>{sop.name}</CardTitle>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Version {sop.version}
-                  </p>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <span
-                    className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ${
-                      sop.isActive
-                        ? "bg-green-50 text-green-700 ring-1 ring-inset ring-green-600/20"
-                        : "bg-red-50 text-red-700 ring-1 ring-inset ring-red-600/20"
-                    }`}
-                  >
-                    {sop.isActive ? "Active" : "Inactive"}
-                  </span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setSelectedSOP(sop);
-                      setIsDialogOpen(true);
-                    }}
-                  >
-                    Edit
-                  </Button>
-                  {sop.isActive && (
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => handleDeleteSOP(sop.id)}
+        {sops
+          .filter((sop) => {
+            if (statusFilter === "ALL") return true;
+            return statusFilter === "ACTIVE" ? sop.isActive : !sop.isActive;
+          })
+          .filter((sop) => {
+            if (roleFilter === "ALL") return true;
+            return sop.requiredRoles.includes(roleFilter);
+          })
+          .sort((a, b) => {
+            switch (sortBy) {
+              case "name":
+                return sortOrder === "asc"
+                  ? a.name.localeCompare(b.name)
+                  : b.name.localeCompare(a.name);
+              case "version":
+                return sortOrder === "asc"
+                  ? a.version.localeCompare(b.version)
+                  : b.version.localeCompare(a.version);
+              case "date":
+                const dateA = new Date(a.updatedAt).getTime();
+                const dateB = new Date(b.updatedAt).getTime();
+                return sortOrder === "asc" ? dateA - dateB : dateB - dateA;
+              default:
+                return 0;
+            }
+          })
+          .map((sop) => (
+            <Card key={sop.id}>
+              <CardHeader>
+                <div className="flex justify-between items-start">
+                  <div>
+                    <CardTitle>{sop.name}</CardTitle>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Version {sop.version}
+                    </p>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <span
+                      className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ${
+                        sop.isActive
+                          ? "bg-green-50 text-green-700 ring-1 ring-inset ring-green-600/20"
+                          : "bg-red-50 text-red-700 ring-1 ring-inset ring-red-600/20"
+                      }`}
                     >
-                      Deactivate
+                      {sop.isActive ? "Active" : "Inactive"}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedSOP(sop);
+                        setIsDialogOpen(true);
+                      }}
+                    >
+                      Edit
                     </Button>
-                  )}
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-4 md:grid-cols-2">
-                <div>
-                  <h3 className="font-semibold mb-2">Details</h3>
-                  <dl className="space-y-1 text-sm">
-                    {sop.description && (
-                      <div>
-                        <dt className="inline text-muted-foreground">
-                          Description:
-                        </dt>
-                        <dd className="inline ml-1">{sop.description}</dd>
-                      </div>
+                    {sop.isActive && (
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => handleDeleteSOP(sop.id)}
+                      >
+                        Deactivate
+                      </Button>
                     )}
-                    <div>
-                      <dt className="inline text-muted-foreground">
-                        Required roles:
-                      </dt>
-                      <dd className="inline ml-1">
-                        {sop.requiredRoles.map(formatRole).join(", ")}
-                      </dd>
-                    </div>
-                    {sop.content && (
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div>
+                    <h3 className="font-semibold mb-2">Details</h3>
+                    <dl className="space-y-1 text-sm">
+                      {sop.description && (
+                        <div>
+                          <dt className="inline text-muted-foreground">
+                            Description:
+                          </dt>
+                          <dd className="inline ml-1">{sop.description}</dd>
+                        </div>
+                      )}
                       <div>
                         <dt className="inline text-muted-foreground">
-                          Content:
+                          Required roles:
                         </dt>
                         <dd className="inline ml-1">
-                          {sop.content.startsWith("http") ? (
-                            <a
-                              href={sop.content}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-blue-600 hover:underline"
-                            >
-                              View Content
-                            </a>
-                          ) : (
-                            sop.content
-                          )}
+                          {sop.requiredRoles.map(formatRole).join(", ")}
                         </dd>
                       </div>
-                    )}
-                  </dl>
-                </div>
+                      {sop.content && (
+                        <div>
+                          <dt className="inline text-muted-foreground">
+                            Content:
+                          </dt>
+                          <dd className="inline ml-1">
+                            {sop.content.startsWith("http") ? (
+                              <a
+                                href={sop.content}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-600 hover:underline"
+                              >
+                                View Content
+                              </a>
+                            ) : (
+                              sop.content
+                            )}
+                          </dd>
+                        </div>
+                      )}
+                    </dl>
+                  </div>
 
-                <div>
-                  <h3 className="font-semibold mb-2">History</h3>
-                  <dl className="space-y-1 text-sm">
-                    <div>
-                      <dt className="inline text-muted-foreground">
-                        Created by:
-                      </dt>
-                      <dd className="inline ml-1">{sop.createdBy.name}</dd>
-                    </div>
-                    <div>
-                      <dt className="inline text-muted-foreground">
-                        Created on:
-                      </dt>
-                      <dd className="inline ml-1">
-                        {new Date(sop.createdAt).toLocaleDateString()}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className="inline text-muted-foreground">
-                        Last modified by:
-                      </dt>
-                      <dd className="inline ml-1">{sop.lastModifiedBy.name}</dd>
-                    </div>
-                    <div>
-                      <dt className="inline text-muted-foreground">
-                        Last modified on:
-                      </dt>
-                      <dd className="inline ml-1">
-                        {new Date(sop.updatedAt).toLocaleDateString()}
-                      </dd>
-                    </div>
-                  </dl>
+                  <div>
+                    <h3 className="font-semibold mb-2">History</h3>
+                    <dl className="space-y-1 text-sm">
+                      <div>
+                        <dt className="inline text-muted-foreground">
+                          Created by:
+                        </dt>
+                        <dd className="inline ml-1">{sop.createdBy.name}</dd>
+                      </div>
+                      <div>
+                        <dt className="inline text-muted-foreground">
+                          Created on:
+                        </dt>
+                        <dd className="inline ml-1">
+                          {new Date(sop.createdAt).toLocaleDateString()}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="inline text-muted-foreground">
+                          Last modified by:
+                        </dt>
+                        <dd className="inline ml-1">
+                          {sop.lastModifiedBy.name}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="inline text-muted-foreground">
+                          Last modified on:
+                        </dt>
+                        <dd className="inline ml-1">
+                          {new Date(sop.updatedAt).toLocaleDateString()}
+                        </dd>
+                      </div>
+                    </dl>
+                  </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+              </CardContent>
+            </Card>
+          ))}
       </div>
 
       <SOPDialog

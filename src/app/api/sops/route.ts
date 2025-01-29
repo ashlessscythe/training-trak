@@ -24,12 +24,14 @@ export async function GET() {
           select: {
             name: true,
             email: true,
+            siteId: true,
           },
         },
         lastModifiedBy: {
           select: {
             name: true,
             email: true,
+            siteId: true,
           },
         },
       },
@@ -65,7 +67,7 @@ export async function POST(req: NextRequest) {
 
     if (
       !currentUser ||
-      !["OWNER", "ADMIN", "SUPERVISOR"].includes(currentUser.role)
+      !["OWNER", "ADMIN", "SITE_ADMIN", "SUPERVISOR"].includes(currentUser.role)
     ) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
@@ -97,12 +99,14 @@ export async function POST(req: NextRequest) {
           select: {
             name: true,
             email: true,
+            siteId: true,
           },
         },
         lastModifiedBy: {
           select: {
             name: true,
             email: true,
+            siteId: true,
           },
         },
       },
@@ -136,7 +140,7 @@ export async function PUT(req: NextRequest) {
 
     if (
       !currentUser ||
-      !["OWNER", "ADMIN", "SUPERVISOR"].includes(currentUser.role)
+      !["OWNER", "ADMIN", "SITE_ADMIN", "SUPERVISOR"].includes(currentUser.role)
     ) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
@@ -150,6 +154,28 @@ export async function PUT(req: NextRequest) {
         { error: "SOP ID is required" },
         { status: 400 }
       );
+    }
+
+    // Get the SOP to check site permissions for site admin
+    const existingSop = await prisma.sOP.findUnique({
+      where: { id },
+      include: {
+        createdBy: {
+          select: { siteId: true },
+        },
+      },
+    });
+
+    if (!existingSop) {
+      return NextResponse.json({ error: "SOP not found" }, { status: 404 });
+    }
+
+    // Check if site admin has permission for this SOP
+    if (
+      currentUser.role === "SITE_ADMIN" &&
+      currentUser.siteId !== existingSop.createdBy.siteId
+    ) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const updateData: any = {
@@ -175,12 +201,14 @@ export async function PUT(req: NextRequest) {
           select: {
             name: true,
             email: true,
+            siteId: true,
           },
         },
         lastModifiedBy: {
           select: {
             name: true,
             email: true,
+            siteId: true,
           },
         },
       },
@@ -212,10 +240,6 @@ export async function DELETE(req: NextRequest) {
       where: { email: session.user.email },
     });
 
-    if (!currentUser || !["OWNER", "ADMIN"].includes(currentUser.role)) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
 
@@ -226,13 +250,39 @@ export async function DELETE(req: NextRequest) {
       );
     }
 
+    // Get the SOP to check permissions
+    const sop = await prisma.sOP.findUnique({
+      where: { id },
+      include: {
+        createdBy: {
+          select: { siteId: true },
+        },
+      },
+    });
+
+    if (!sop) {
+      return NextResponse.json({ error: "SOP not found" }, { status: 404 });
+    }
+
+    // Check permissions
+    if (
+      !currentUser ||
+      (!["OWNER", "ADMIN"].includes(currentUser.role) &&
+        !(
+          currentUser.role === "SITE_ADMIN" &&
+          currentUser.siteId === sop.createdBy.siteId
+        ))
+    ) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     // Instead of deleting, we'll deactivate the SOP
-    const sop = await prisma.sOP.update({
+    const updatedSop = await prisma.sOP.update({
       where: { id },
       data: { isActive: false },
     });
 
-    return NextResponse.json(sop);
+    return NextResponse.json(updatedSop);
   } catch (error) {
     return NextResponse.json(
       { error: "Internal server error" },
