@@ -426,118 +426,137 @@ export default function UsersPage() {
       <div className="mb-4"></div>
 
       <div className="grid gap-6">
-        {filteredAndSortedUsers.map((user) => {
-          const stats = getUserStats(user);
+        {Array.isArray(filteredAndSortedUsers) &&
+        filteredAndSortedUsers.length > 0 ? (
+          filteredAndSortedUsers.map((user) => {
+            const stats = getUserStats(user);
 
-          return (
-            <Card key={user.id}>
-              <CardHeader>
-                <div className="flex justify-between items-start">
-                  <div>
-                    <CardTitle>{user.name}</CardTitle>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      {user.email}
-                    </p>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <span
-                      className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ${
-                        user.isActive
-                          ? "bg-green-50 text-green-700 ring-1 ring-inset ring-green-600/20"
-                          : "bg-red-50 text-red-700 ring-1 ring-inset ring-red-600/20"
-                      }`}
-                    >
-                      {user.isActive ? "Active" : "Inactive"}
-                    </span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setSelectedUser(user);
-                        setIsDialogOpen(true);
-                      }}
-                    >
-                      Edit
-                    </Button>
-                    {user.isActive && (
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => handleDeleteUser(user.id)}
+            return (
+              <Card key={user.id}>
+                <CardHeader>
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <CardTitle>{user.name}</CardTitle>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {user.email}
+                      </p>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <span
+                        className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ${
+                          user.isActive
+                            ? "bg-green-50 text-green-700 ring-1 ring-inset ring-green-600/20"
+                            : "bg-red-50 text-red-700 ring-1 ring-inset ring-red-600/20"
+                        }`}
                       >
-                        Deactivate
+                        {user.isActive ? "Active" : "Inactive"}
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedUser(user);
+                          setIsDialogOpen(true);
+                        }}
+                      >
+                        Edit
                       </Button>
-                    )}
+                      {user.isActive && (
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => handleDeleteUser(user.id)}
+                        >
+                          Deactivate
+                        </Button>
+                      )}
+                    </div>
                   </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div>
-                    <h3 className="font-semibold mb-2">Details</h3>
-                    <dl className="space-y-1 text-sm">
-                      <div>
-                        <dt className="inline text-muted-foreground">Site:</dt>
-                        <dd className="inline ml-1">{user.site.name}</dd>
-                      </div>
-                      <div>
-                        <dt className="inline text-muted-foreground">
-                          Department:
-                        </dt>
-                        <dd className="inline ml-1">{user.department.name}</dd>
-                      </div>
-                      <div>
-                        <dt className="inline text-muted-foreground">
-                          Position:
-                        </dt>
-                        <dd className="inline ml-1">{user.position.name}</dd>
-                      </div>
-                      <div>
-                        <dt className="inline text-muted-foreground">Role:</dt>
-                        <dd className="inline ml-1">{formatRole(user.role)}</dd>
-                      </div>
-                      <div>
-                        <dt className="inline text-muted-foreground">
-                          Member since:
-                        </dt>
-                        <dd className="inline ml-1">
-                          {new Date(user.createdAt).toLocaleDateString()}
-                        </dd>
-                      </div>
-                    </dl>
-                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div>
+                      <h3 className="font-semibold mb-2">Details</h3>
+                      <dl className="space-y-1 text-sm">
+                        <div>
+                          <dt className="inline text-muted-foreground">
+                            Site:
+                          </dt>
+                          <dd className="inline ml-1">{user.site.name}</dd>
+                        </div>
+                        <div>
+                          <dt className="inline text-muted-foreground">
+                            Department:
+                          </dt>
+                          <dd className="inline ml-1">
+                            {user.department.name}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt className="inline text-muted-foreground">
+                            Position:
+                          </dt>
+                          <dd className="inline ml-1">{user.position.name}</dd>
+                        </div>
+                        <div>
+                          <dt className="inline text-muted-foreground">
+                            Role:
+                          </dt>
+                          <dd className="inline ml-1">
+                            {formatRole(user.role)}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt className="inline text-muted-foreground">
+                            Member since:
+                          </dt>
+                          <dd className="inline ml-1">
+                            {new Date(user.createdAt).toLocaleDateString()}
+                          </dd>
+                        </div>
+                      </dl>
+                    </div>
 
-                  <div>
-                    <h3 className="font-semibold mb-2">Activity</h3>
-                    <dl className="space-y-1 text-sm">
-                      <div>
-                        <dt className="inline text-muted-foreground">
-                          Training progress:
-                        </dt>
-                        <dd className="inline ml-1">
-                          {stats.completedTrainings} / {stats.totalTrainings} (
-                          {stats.trainingProgress}%)
-                        </dd>
-                      </div>
-                      <div>
-                        <dt className="inline text-muted-foreground">
-                          Documents uploaded:
-                        </dt>
-                        <dd className="inline ml-1">{stats.uploadedDocs}</dd>
-                      </div>
-                      <div>
-                        <dt className="inline text-muted-foreground">
-                          SOPs created:
-                        </dt>
-                        <dd className="inline ml-1">{stats.createdSOPs}</dd>
-                      </div>
-                    </dl>
+                    <div>
+                      <h3 className="font-semibold mb-2">Activity</h3>
+                      <dl className="space-y-1 text-sm">
+                        <div>
+                          <dt className="inline text-muted-foreground">
+                            Training progress:
+                          </dt>
+                          <dd className="inline ml-1">
+                            {stats.completedTrainings} / {stats.totalTrainings}{" "}
+                            ({stats.trainingProgress}%)
+                          </dd>
+                        </div>
+                        <div>
+                          <dt className="inline text-muted-foreground">
+                            Documents uploaded:
+                          </dt>
+                          <dd className="inline ml-1">{stats.uploadedDocs}</dd>
+                        </div>
+                        <div>
+                          <dt className="inline text-muted-foreground">
+                            SOPs created:
+                          </dt>
+                          <dd className="inline ml-1">{stats.createdSOPs}</dd>
+                        </div>
+                      </dl>
+                    </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
+                </CardContent>
+              </Card>
+            );
+          })
+        ) : (
+          <Card>
+            <CardContent className="py-8">
+              <p className="text-center text-muted-foreground">
+                No users found
+              </p>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       <UserDialog

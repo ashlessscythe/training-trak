@@ -200,44 +200,56 @@ export default function DepartmentsPage() {
       <div className="mb-4"></div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {filteredAndSortedDepartments.map((department) => (
-          <Card key={department.id}>
-            <CardHeader>
-              <div className="flex justify-between items-start">
-                <CardTitle>{department.name}</CardTitle>
-                <div className="flex items-center space-x-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setSelectedDepartment(department);
-                      setIsDialogOpen(true);
-                    }}
-                  >
-                    Edit
-                  </Button>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => handleDeleteDepartment(department.id)}
-                  >
-                    Delete
-                  </Button>
+        {Array.isArray(filteredAndSortedDepartments) &&
+        filteredAndSortedDepartments.length > 0 ? (
+          filteredAndSortedDepartments.map((department) => (
+            <Card key={department.id}>
+              <CardHeader>
+                <div className="flex justify-between items-start">
+                  <CardTitle>{department.name}</CardTitle>
+                  <div className="flex items-center space-x-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedDepartment(department);
+                        setIsDialogOpen(true);
+                      }}
+                    >
+                      Edit
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => handleDeleteDepartment(department.id)}
+                    >
+                      Delete
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                <p className="text-sm text-muted-foreground">
-                  {department.description || "No description provided"}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  Created: {new Date(department.createdAt).toLocaleDateString()}
-                </p>
-              </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  <p className="text-sm text-muted-foreground">
+                    {department.description || "No description provided"}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Created:{" "}
+                    {new Date(department.createdAt).toLocaleDateString()}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        ) : (
+          <Card>
+            <CardContent className="py-8">
+              <p className="text-center text-muted-foreground">
+                No departments found
+              </p>
             </CardContent>
           </Card>
-        ))}
+        )}
       </div>
 
       <DepartmentDialog

@@ -200,44 +200,55 @@ export default function PositionsPage() {
       <div className="mb-4"></div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {filteredAndSortedPositions.map((position) => (
-          <Card key={position.id}>
-            <CardHeader>
-              <div className="flex justify-between items-start">
-                <CardTitle>{position.name}</CardTitle>
-                <div className="flex items-center space-x-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setSelectedPosition(position);
-                      setIsDialogOpen(true);
-                    }}
-                  >
-                    Edit
-                  </Button>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => handleDeletePosition(position.id)}
-                  >
-                    Delete
-                  </Button>
+        {Array.isArray(filteredAndSortedPositions) &&
+        filteredAndSortedPositions.length > 0 ? (
+          filteredAndSortedPositions.map((position) => (
+            <Card key={position.id}>
+              <CardHeader>
+                <div className="flex justify-between items-start">
+                  <CardTitle>{position.name}</CardTitle>
+                  <div className="flex items-center space-x-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedPosition(position);
+                        setIsDialogOpen(true);
+                      }}
+                    >
+                      Edit
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => handleDeletePosition(position.id)}
+                    >
+                      Delete
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                <p className="text-sm text-muted-foreground">
-                  {position.description || "No description provided"}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  Created: {new Date(position.createdAt).toLocaleDateString()}
-                </p>
-              </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  <p className="text-sm text-muted-foreground">
+                    {position.description || "No description provided"}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Created: {new Date(position.createdAt).toLocaleDateString()}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        ) : (
+          <Card>
+            <CardContent className="py-8">
+              <p className="text-center text-muted-foreground">
+                No positions found
+              </p>
             </CardContent>
           </Card>
-        ))}
+        )}
       </div>
 
       <PositionDialog
