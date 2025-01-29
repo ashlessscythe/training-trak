@@ -3,6 +3,8 @@ import {
   Role,
   DocumentType,
   TrainingStatus,
+  Department,
+  Position,
 } from "@prisma/client";
 import { faker } from "@faker-js/faker";
 import yargs from "yargs/yargs";
@@ -61,7 +63,73 @@ async function main() {
     await prisma.document.deleteMany();
     await prisma.sOP.deleteMany();
     await prisma.user.deleteMany();
+    await prisma.position.deleteMany();
+    await prisma.department.deleteMany();
     await prisma.site.deleteMany();
+  }
+
+  // Create default department
+  const defaultDepartment = await prisma.department.create({
+    data: {
+      name: "DEFAULT_DEPT",
+      description: "Default department for new users",
+      isActive: true,
+    },
+  });
+
+  // Create other departments
+  const departments = [defaultDepartment];
+  const departmentNames = [
+    "Operations",
+    "Warehouse",
+    "Quality Control",
+    "Shipping",
+  ];
+
+  for (const name of departmentNames) {
+    const department = await prisma.department.create({
+      data: {
+        name,
+        description: useFaker
+          ? faker.company.catchPhrase()
+          : `${name} department`,
+        isActive: true,
+      },
+    });
+    departments.push(department);
+  }
+
+  // Create default position
+  const defaultPosition = await prisma.position.create({
+    data: {
+      name: "DEFAULT_POSITION",
+      description: "Default position for new users",
+      isActive: true,
+    },
+  });
+
+  // Create other positions
+  const positions = [defaultPosition];
+  const positionNames = [
+    "Clerk",
+    "Supervisor",
+    "Loader",
+    "Inspector",
+    "Operator",
+    "Team Lead",
+  ];
+
+  for (const name of positionNames) {
+    const position = await prisma.position.create({
+      data: {
+        name,
+        description: useFaker
+          ? faker.company.catchPhrase()
+          : `${name} position`,
+        isActive: true,
+      },
+    });
+    positions.push(position);
   }
 
   // Create sites
@@ -110,6 +178,8 @@ async function main() {
       role: "ADMIN",
       isActive: true,
       siteId: sites[0].id,
+      departmentId: defaultDepartment.id,
+      positionId: defaultPosition.id,
     },
   });
   users.push(defaultAdmin);
@@ -133,6 +203,8 @@ async function main() {
           role,
           isActive: true,
           siteId: site.id,
+          departmentId: faker.helpers.arrayElement(departments).id,
+          positionId: faker.helpers.arrayElement(positions).id,
         },
       });
       users.push(user);
@@ -253,6 +325,8 @@ async function main() {
   console.log("Seed data created successfully!");
   console.log(`Created:
 - ${sites.length} sites
+- ${departments.length} departments (including DEFAULT_DEPT)
+- ${positions.length} positions (including DEFAULT_POSITION)
 - ${users.length} users (including default admin bob@bob.bob)
 - ${sops.length} SOPs
 - ${documents.length} documents

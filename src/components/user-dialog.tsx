@@ -4,7 +4,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Site, User } from "@prisma/client";
+import { Site, User, Department, Position } from "@prisma/client";
 import { UserForm } from "./user-form";
 
 interface UserDialogProps {
@@ -12,6 +12,8 @@ interface UserDialogProps {
   onClose: () => void;
   onSubmit: (data: any) => Promise<void>;
   sites: Site[];
+  departments: Department[];
+  positions: Position[];
   user?: User;
   title: string;
 }
@@ -21,6 +23,8 @@ export function UserDialog({
   onClose,
   onSubmit,
   sites,
+  departments,
+  positions,
   user,
   title,
 }: UserDialogProps) {
@@ -32,6 +36,8 @@ export function UserDialog({
         </DialogHeader>
         <UserForm
           sites={sites}
+          departments={departments}
+          positions={positions}
           onSubmit={onSubmit}
           initialData={user}
           onCancel={onClose}

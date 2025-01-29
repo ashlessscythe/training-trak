@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Role, Site, User } from "@prisma/client";
+import { Role, Site, User, Department, Position } from "@prisma/client";
 import { UserDialog } from "@/components/user-dialog";
 import {
   Select,
@@ -16,6 +16,8 @@ import { Input } from "@/components/ui/input";
 
 type UserWithRelations = User & {
   site: Site;
+  department: Department;
+  position: Position;
   trainings: { status: string }[];
   uploadedDocs: { id: string }[];
   createdSOPs: { id: string }[];
@@ -48,8 +50,11 @@ function getUserStats(user: UserWithRelations) {
 }
 
 export default function UsersPage() {
-  const [users, setUsers] = useState<UserWithRelations[]>([]);
+  // Initialize with empty array and proper type
+  const [users, setUsers] = useState<UserWithRelations[]>(() => []);
   const [sites, setSites] = useState<Site[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [positions, setPositions] = useState<Position[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<
@@ -58,23 +63,32 @@ export default function UsersPage() {
   const [nameFilter, setNameFilter] = useState<string>("");
   const [roleFilter, setRoleFilter] = useState<Role | "ALL">("ALL");
   const [siteFilter, setSiteFilter] = useState<string>("ALL");
+  const [departmentFilter, setDepartmentFilter] = useState<string>("ALL");
+  const [positionFilter, setPositionFilter] = useState<string>("ALL");
   const [activeFilter, setActiveFilter] = useState<
     "ALL" | "ACTIVE" | "INACTIVE"
   >("ALL");
-  const [sortBy, setSortBy] = useState<"name" | "role" | "site" | "createdAt">(
-    "name"
-  );
+  const [sortBy, setSortBy] = useState<
+    "name" | "role" | "site" | "department" | "position" | "createdAt"
+  >("name");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [usersRes, sitesRes] = await Promise.all([
-          fetch("/api/users").then((res) => res.json()),
-          fetch("/api/sites").then((res) => res.json()),
-        ]);
-        setUsers(usersRes);
-        setSites(sitesRes);
+        const [usersRes, sitesRes, departmentsRes, positionsRes] =
+          await Promise.all([
+            fetch("/api/users").then((res) => res.json()),
+            fetch("/api/sites").then((res) => res.json()),
+            fetch("/api/departments").then((res) => res.json()),
+            fetch("/api/positions").then((res) => res.json()),
+          ]);
+
+        // Ensure we have arrays even if the response is null/undefined
+        setUsers(Array.isArray(usersRes) ? usersRes : []);
+        setSites(Array.isArray(sitesRes) ? sitesRes : []);
+        setDepartments(Array.isArray(departmentsRes) ? departmentsRes : []);
+        setPositions(Array.isArray(positionsRes) ? positionsRes : []);
       } catch (error) {
         console.error("Failed to fetch data:", error);
       } finally {
@@ -98,8 +112,20 @@ export default function UsersPage() {
         throw new Error(error.message || "Failed to create user");
       }
 
+      const newUser = await response.json();
+      // Add site, department, and position objects to match the expected shape
+      const userWithRelations = {
+        ...newUser,
+        site: sites.find((s) => s.id === newUser.siteId)!,
+        department: departments.find((d) => d.id === newUser.departmentId)!,
+        position: positions.find((p) => p.id === newUser.positionId)!,
+        trainings: [],
+        uploadedDocs: [],
+        createdSOPs: [],
+      };
+
+      setUsers((prev) => [...prev, userWithRelations]);
       setIsDialogOpen(false);
-      window.location.reload();
     } catch (error: any) {
       alert(error.message);
     }
@@ -118,9 +144,27 @@ export default function UsersPage() {
         throw new Error(error.message || "Failed to update user");
       }
 
+      const updatedUser = await response.json();
+      // Update user while preserving related data structure
+      setUsers((prev) =>
+        prev.map((user) => {
+          if (user.id === updatedUser.id) {
+            return {
+              ...user,
+              ...updatedUser,
+              site: sites.find((s) => s.id === updatedUser.siteId)!,
+              department: departments.find(
+                (d) => d.id === updatedUser.departmentId
+              )!,
+              position: positions.find((p) => p.id === updatedUser.positionId)!,
+            };
+          }
+          return user;
+        })
+      );
+
       setIsDialogOpen(false);
       setSelectedUser(undefined);
-      window.location.reload();
     } catch (error: any) {
       alert(error.message);
     }
@@ -139,14 +183,20 @@ export default function UsersPage() {
         throw new Error(error.message || "Failed to delete user");
       }
 
-      window.location.reload();
+      const deactivatedUser = await response.json();
+      setUsers((prev) =>
+        prev.map((user) =>
+          user.id === userId ? { ...user, isActive: false } : user
+        )
+      );
     } catch (error: any) {
       alert(error.message);
     }
   };
 
   const filteredAndSortedUsers = useMemo(() => {
-    let filtered = [...users];
+    // Ensure we're working with an array
+    let filtered = Array.isArray(users) ? [...users] : [];
 
     // Apply filters
     if (nameFilter) {
@@ -163,6 +213,16 @@ export default function UsersPage() {
 
     if (siteFilter !== "ALL") {
       filtered = filtered.filter((user) => user.site.id === siteFilter);
+    }
+
+    if (departmentFilter !== "ALL") {
+      filtered = filtered.filter(
+        (user) => user.department.id === departmentFilter
+      );
+    }
+
+    if (positionFilter !== "ALL") {
+      filtered = filtered.filter((user) => user.position.id === positionFilter);
     }
 
     if (activeFilter !== "ALL") {
@@ -184,6 +244,12 @@ export default function UsersPage() {
         case "site":
           comparison = a.site.name.localeCompare(b.site.name);
           break;
+        case "department":
+          comparison = a.department.name.localeCompare(b.department.name);
+          break;
+        case "position":
+          comparison = a.position.name.localeCompare(b.position.name);
+          break;
         case "createdAt":
           comparison =
             new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
@@ -198,6 +264,8 @@ export default function UsersPage() {
     nameFilter,
     roleFilter,
     siteFilter,
+    departmentFilter,
+    positionFilter,
     activeFilter,
     sortBy,
     sortOrder,
@@ -223,6 +291,8 @@ export default function UsersPage() {
                 setNameFilter("");
                 setRoleFilter("ALL");
                 setSiteFilter("ALL");
+                setDepartmentFilter("ALL");
+                setPositionFilter("ALL");
                 setActiveFilter("ALL");
                 setSortBy("name");
                 setSortOrder("asc");
@@ -234,7 +304,7 @@ export default function UsersPage() {
           </div>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
           <Input
             placeholder="Search by name or email"
             value={nameFilter}
@@ -274,6 +344,34 @@ export default function UsersPage() {
             </SelectContent>
           </Select>
 
+          <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
+            <SelectTrigger>
+              <SelectValue placeholder="Filter by department" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">All Departments</SelectItem>
+              {departments.map((department) => (
+                <SelectItem key={department.id} value={department.id}>
+                  {department.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={positionFilter} onValueChange={setPositionFilter}>
+            <SelectTrigger>
+              <SelectValue placeholder="Filter by position" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">All Positions</SelectItem>
+              {positions.map((position) => (
+                <SelectItem key={position.id} value={position.id}>
+                  {position.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
           <Select
             value={activeFilter}
             onValueChange={(value: "ALL" | "ACTIVE" | "INACTIVE") =>
@@ -293,9 +391,15 @@ export default function UsersPage() {
           <div className="flex gap-2">
             <Select
               value={sortBy}
-              onValueChange={(value: "name" | "role" | "site" | "createdAt") =>
-                setSortBy(value)
-              }
+              onValueChange={(
+                value:
+                  | "name"
+                  | "role"
+                  | "site"
+                  | "department"
+                  | "position"
+                  | "createdAt"
+              ) => setSortBy(value)}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Sort by" />
@@ -304,6 +408,8 @@ export default function UsersPage() {
                 <SelectItem value="name">Name</SelectItem>
                 <SelectItem value="role">Role</SelectItem>
                 <SelectItem value="site">Site</SelectItem>
+                <SelectItem value="department">Department</SelectItem>
+                <SelectItem value="position">Position</SelectItem>
                 <SelectItem value="createdAt">Date Created</SelectItem>
               </SelectContent>
             </Select>
@@ -375,6 +481,18 @@ export default function UsersPage() {
                         <dd className="inline ml-1">{user.site.name}</dd>
                       </div>
                       <div>
+                        <dt className="inline text-muted-foreground">
+                          Department:
+                        </dt>
+                        <dd className="inline ml-1">{user.department.name}</dd>
+                      </div>
+                      <div>
+                        <dt className="inline text-muted-foreground">
+                          Position:
+                        </dt>
+                        <dd className="inline ml-1">{user.position.name}</dd>
+                      </div>
+                      <div>
                         <dt className="inline text-muted-foreground">Role:</dt>
                         <dd className="inline ml-1">{formatRole(user.role)}</dd>
                       </div>
@@ -430,6 +548,8 @@ export default function UsersPage() {
         }}
         onSubmit={selectedUser ? handleUpdateUser : handleCreateUser}
         sites={sites}
+        departments={departments}
+        positions={positions}
         user={selectedUser}
         title={selectedUser ? "Edit User" : "Create User"}
       />

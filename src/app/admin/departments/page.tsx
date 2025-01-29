@@ -1,0 +1,251 @@
+"use client";
+
+import { useEffect, useState, useMemo } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Department } from "@prisma/client";
+import { DepartmentDialog } from "@/components/department-dialog";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+export default function DepartmentsPage() {
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [selectedDepartment, setSelectedDepartment] = useState<
+    Department | undefined
+  >();
+  const [nameFilter, setNameFilter] = useState<string>("");
+  const [sortBy, setSortBy] = useState<"name" | "createdAt">("name");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const response = await fetch("/api/departments");
+        const data = await response.json();
+        setDepartments(data);
+      } catch (error) {
+        console.error("Failed to fetch departments:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  const handleCreateDepartment = async (data: any) => {
+    try {
+      const response = await fetch("/api/departments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to create department");
+      }
+
+      setIsDialogOpen(false);
+      window.location.reload();
+    } catch (error: any) {
+      alert(error.message);
+    }
+  };
+
+  const handleUpdateDepartment = async (data: any) => {
+    try {
+      const response = await fetch("/api/departments", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to update department");
+      }
+
+      setIsDialogOpen(false);
+      setSelectedDepartment(undefined);
+      window.location.reload();
+    } catch (error: any) {
+      alert(error.message);
+    }
+  };
+
+  const handleDeleteDepartment = async (departmentId: string) => {
+    if (!confirm("Are you sure you want to delete this department?")) return;
+
+    try {
+      const response = await fetch(`/api/departments?id=${departmentId}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to delete department");
+      }
+
+      window.location.reload();
+    } catch (error: any) {
+      alert(error.message);
+    }
+  };
+
+  const filteredAndSortedDepartments = useMemo(() => {
+    let filtered = [...departments];
+
+    // Apply name filter
+    if (nameFilter) {
+      filtered = filtered.filter((department) =>
+        department.name.toLowerCase().includes(nameFilter.toLowerCase())
+      );
+    }
+
+    // Apply sorting
+    filtered.sort((a, b) => {
+      let comparison = 0;
+      switch (sortBy) {
+        case "name":
+          comparison = a.name.localeCompare(b.name);
+          break;
+        case "createdAt":
+          comparison =
+            new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+          break;
+      }
+      return sortOrder === "asc" ? comparison : -comparison;
+    });
+
+    return filtered;
+  }, [departments, nameFilter, sortBy, sortOrder]);
+
+  if (isLoading) {
+    return (
+      <div className="container mx-auto py-10">
+        <div className="text-center">Loading...</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="container mx-auto py-10">
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <h1 className="text-3xl font-bold">Departments</h1>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setNameFilter("");
+                setSortBy("name");
+                setSortOrder("asc");
+              }}
+            >
+              Clear Filters
+            </Button>
+            <Button onClick={() => setIsDialogOpen(true)}>
+              Create Department
+            </Button>
+          </div>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <Input
+            placeholder="Search by name"
+            value={nameFilter}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+              setNameFilter(e.target.value)
+            }
+          />
+
+          <div className="flex gap-2">
+            <Select
+              value={sortBy}
+              onValueChange={(value: "name" | "createdAt") => setSortBy(value)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Sort by" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="name">Name</SelectItem>
+                <SelectItem value="createdAt">Date Created</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
+            >
+              {sortOrder === "asc" ? "↑" : "↓"}
+            </Button>
+          </div>
+        </div>
+      </div>
+      <div className="mb-4"></div>
+
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        {filteredAndSortedDepartments.map((department) => (
+          <Card key={department.id}>
+            <CardHeader>
+              <div className="flex justify-between items-start">
+                <CardTitle>{department.name}</CardTitle>
+                <div className="flex items-center space-x-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setSelectedDepartment(department);
+                      setIsDialogOpen(true);
+                    }}
+                  >
+                    Edit
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => handleDeleteDepartment(department.id)}
+                  >
+                    Delete
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">
+                  {department.description || "No description provided"}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Created: {new Date(department.createdAt).toLocaleDateString()}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      <DepartmentDialog
+        isOpen={isDialogOpen}
+        onClose={() => {
+          setIsDialogOpen(false);
+          setSelectedDepartment(undefined);
+        }}
+        onSubmit={
+          selectedDepartment ? handleUpdateDepartment : handleCreateDepartment
+        }
+        department={selectedDepartment}
+        title={selectedDepartment ? "Edit Department" : "Create Department"}
+      />
+    </div>
+  );
+}

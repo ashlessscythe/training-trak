@@ -22,6 +22,8 @@ export async function GET() {
     const users = await prisma.user.findMany({
       include: {
         site: true,
+        department: true,
+        position: true,
         trainings: {
           select: {
             status: true,
@@ -79,10 +81,19 @@ export async function POST(req: NextRequest) {
     }
 
     const data = await req.json();
-    const { email, name, password, role, siteId } = data;
+    const { email, name, password, role, siteId, departmentId, positionId } =
+      data;
 
     // Validate required fields
-    if (!email || !name || !password || !role || !siteId) {
+    if (
+      !email ||
+      !name ||
+      !password ||
+      !role ||
+      !siteId ||
+      !departmentId ||
+      !positionId
+    ) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
@@ -99,6 +110,8 @@ export async function POST(req: NextRequest) {
         password: hashedPassword,
         role,
         siteId,
+        departmentId,
+        positionId,
         isActive: true,
       },
     });
@@ -135,7 +148,17 @@ export async function PUT(req: NextRequest) {
     }
 
     const data = await req.json();
-    const { id, email, name, role, siteId, isActive, password } = data;
+    const {
+      id,
+      email,
+      name,
+      role,
+      siteId,
+      departmentId,
+      positionId,
+      isActive,
+      password,
+    } = data;
 
     if (!id) {
       return NextResponse.json(
@@ -149,6 +172,8 @@ export async function PUT(req: NextRequest) {
       name,
       role,
       siteId,
+      departmentId,
+      positionId,
       isActive,
     };
 

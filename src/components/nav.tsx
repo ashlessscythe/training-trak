@@ -24,8 +24,7 @@ const navigation = [
     href: "/documents",
     roles: ["OWNER", "ADMIN", "SUPERVISOR", "USER"],
   },
-  { name: "Users", href: "/users", roles: ["OWNER", "ADMIN"] },
-  { name: "Sites", href: "/sites", roles: ["OWNER", "ADMIN"] },
+  { name: "Admin", href: "/admin", roles: ["OWNER", "ADMIN"] },
 ];
 
 export function Nav() {

@@ -39,10 +39,34 @@ export async function POST(request: Request) {
       );
     }
 
+    // Get default dept
+    const defaultDept = await prisma.department.findFirst({
+      where: { name: "DEFAULT_DEPT" },
+    });
+
+    if (!defaultDept) {
+      return NextResponse.json(
+        { error: "Default department not found" },
+        { status: 500 }
+      );
+    }
+    // Get default dept
+
+    const defaultPosition = await prisma.position.findFirst({
+      where: { name: "DEFAULT_POSITION" },
+    });
+
+    if (!defaultPosition) {
+      return NextResponse.json(
+        { error: "Default position not found" },
+        { status: 500 }
+      );
+    }
+
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Create user with PENDING role
+    // Create user with PENDING role and default position/id
     const user = await prisma.user.create({
       data: {
         email,
@@ -50,6 +74,8 @@ export async function POST(request: Request) {
         password: hashedPassword,
         siteId: defaultSite.id,
         role: "PENDING",
+        departmentId: defaultDept.id,
+        positionId: defaultPosition.id,
       },
       select: {
         id: true,

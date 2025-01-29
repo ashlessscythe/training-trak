@@ -1,15 +1,19 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Role, Site } from "@prisma/client";
+import { Role, Site, Department, Position } from "@prisma/client";
 
 interface UserFormProps {
   sites: Site[];
+  departments: Department[];
+  positions: Position[];
   onSubmit: (data: {
     email: string;
     name: string;
     password?: string;
     role: Role;
     siteId: string;
+    departmentId: string;
+    positionId: string;
     isActive?: boolean;
     id?: string;
   }) => Promise<void>;
@@ -19,6 +23,8 @@ interface UserFormProps {
     name: string;
     role: Role;
     siteId: string;
+    departmentId: string;
+    positionId: string;
     isActive: boolean;
   };
   onCancel: () => void;
@@ -26,6 +32,8 @@ interface UserFormProps {
 
 export function UserForm({
   sites,
+  departments,
+  positions,
   onSubmit,
   initialData,
   onCancel,
@@ -36,6 +44,8 @@ export function UserForm({
     password: "",
     role: initialData?.role || Role.USER,
     siteId: initialData?.siteId || "",
+    departmentId: initialData?.departmentId || "",
+    positionId: initialData?.positionId || "",
     isActive: initialData?.isActive ?? true,
   });
 
@@ -134,6 +144,44 @@ export function UserForm({
           {sites.map((site) => (
             <option key={site.id} value={site.id}>
               {site.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium mb-1">Department</label>
+        <select
+          required
+          value={formData.departmentId}
+          onChange={(e) =>
+            setFormData((prev) => ({ ...prev, departmentId: e.target.value }))
+          }
+          className="w-full p-2 border rounded-md"
+        >
+          <option value="">Select a department</option>
+          {departments.map((department) => (
+            <option key={department.id} value={department.id}>
+              {department.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium mb-1">Position</label>
+        <select
+          required
+          value={formData.positionId}
+          onChange={(e) =>
+            setFormData((prev) => ({ ...prev, positionId: e.target.value }))
+          }
+          className="w-full p-2 border rounded-md"
+        >
+          <option value="">Select a position</option>
+          {positions.map((position) => (
+            <option key={position.id} value={position.id}>
+              {position.name}
             </option>
           ))}
         </select>
