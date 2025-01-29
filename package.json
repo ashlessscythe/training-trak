@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
+    "build": "npx prisma generate && next build",
+    "start": "npx prisma migrate deploy && next start",
     "lint": "next lint",
     "prisma:seed": "npx ts-node prisma/seed.ts"
   },
@@ -17,6 +17,7 @@
     "@faker-js/faker": "^9.4.0",
     "@prisma/client": "^6.2.1",
     "@radix-ui/react-dialog": "^1.1.5",
+    "@radix-ui/react-select": "^2.1.5",
     "@radix-ui/react-slot": "^1.1.1",
     "@types/bcrypt": "^5.0.2",
     "bcrypt": "^5.1.1",

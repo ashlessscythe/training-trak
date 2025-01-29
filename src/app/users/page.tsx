@@ -1,10 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Role, Site, User } from "@prisma/client";
 import { UserDialog } from "@/components/user-dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 
 type UserWithRelations = User & {
   site: Site;
@@ -47,6 +55,16 @@ export default function UsersPage() {
   const [selectedUser, setSelectedUser] = useState<
     UserWithRelations | undefined
   >();
+  const [nameFilter, setNameFilter] = useState<string>("");
+  const [roleFilter, setRoleFilter] = useState<Role | "ALL">("ALL");
+  const [siteFilter, setSiteFilter] = useState<string>("ALL");
+  const [activeFilter, setActiveFilter] = useState<
+    "ALL" | "ACTIVE" | "INACTIVE"
+  >("ALL");
+  const [sortBy, setSortBy] = useState<"name" | "role" | "site" | "createdAt">(
+    "name"
+  );
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
 
   useEffect(() => {
     const fetchData = async () => {
@@ -127,6 +145,64 @@ export default function UsersPage() {
     }
   };
 
+  const filteredAndSortedUsers = useMemo(() => {
+    let filtered = [...users];
+
+    // Apply filters
+    if (nameFilter) {
+      filtered = filtered.filter(
+        (user) =>
+          user.name.toLowerCase().includes(nameFilter.toLowerCase()) ||
+          user.email.toLowerCase().includes(nameFilter.toLowerCase())
+      );
+    }
+
+    if (roleFilter !== "ALL") {
+      filtered = filtered.filter((user) => user.role === roleFilter);
+    }
+
+    if (siteFilter !== "ALL") {
+      filtered = filtered.filter((user) => user.site.id === siteFilter);
+    }
+
+    if (activeFilter !== "ALL") {
+      filtered = filtered.filter((user) =>
+        activeFilter === "ACTIVE" ? user.isActive : !user.isActive
+      );
+    }
+
+    // Apply sorting
+    filtered.sort((a, b) => {
+      let comparison = 0;
+      switch (sortBy) {
+        case "name":
+          comparison = a.name.localeCompare(b.name);
+          break;
+        case "role":
+          comparison = a.role.localeCompare(b.role);
+          break;
+        case "site":
+          comparison = a.site.name.localeCompare(b.site.name);
+          break;
+        case "createdAt":
+          comparison =
+            new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+          break;
+      }
+      return sortOrder === "asc" ? comparison : -comparison;
+    });
+
+    return filtered;
+  }, [
+    users,
+    nameFilter,
+    roleFilter,
+    siteFilter,
+    activeFilter,
+    sortBy,
+    sortOrder,
+  ]);
+
   if (isLoading) {
     return (
       <div className="container mx-auto py-10">
@@ -137,13 +213,114 @@ export default function UsersPage() {
 
   return (
     <div className="container mx-auto py-10">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold">Users</h1>
-        <Button onClick={() => setIsDialogOpen(true)}>Create User</Button>
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <h1 className="text-3xl font-bold">Users</h1>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setNameFilter("");
+                setRoleFilter("ALL");
+                setSiteFilter("ALL");
+                setActiveFilter("ALL");
+                setSortBy("name");
+                setSortOrder("asc");
+              }}
+            >
+              Clear Filters
+            </Button>
+            <Button onClick={() => setIsDialogOpen(true)}>Create User</Button>
+          </div>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+          <Input
+            placeholder="Search by name or email"
+            value={nameFilter}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+              setNameFilter(e.target.value)
+            }
+          />
+
+          <Select
+            value={roleFilter}
+            onValueChange={(value: Role | "ALL") => setRoleFilter(value)}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Filter by role" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">All Roles</SelectItem>
+              {Object.values(Role).map((role) => (
+                <SelectItem key={role} value={role}>
+                  {formatRole(role)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={siteFilter} onValueChange={setSiteFilter}>
+            <SelectTrigger>
+              <SelectValue placeholder="Filter by site" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">All Sites</SelectItem>
+              {sites.map((site) => (
+                <SelectItem key={site.id} value={site.id}>
+                  {site.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select
+            value={activeFilter}
+            onValueChange={(value: "ALL" | "ACTIVE" | "INACTIVE") =>
+              setActiveFilter(value)
+            }
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Filter by status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">All Status</SelectItem>
+              <SelectItem value="ACTIVE">Active</SelectItem>
+              <SelectItem value="INACTIVE">Inactive</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <div className="flex gap-2">
+            <Select
+              value={sortBy}
+              onValueChange={(value: "name" | "role" | "site" | "createdAt") =>
+                setSortBy(value)
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Sort by" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="name">Name</SelectItem>
+                <SelectItem value="role">Role</SelectItem>
+                <SelectItem value="site">Site</SelectItem>
+                <SelectItem value="createdAt">Date Created</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
+            >
+              {sortOrder === "asc" ? "↑" : "↓"}
+            </Button>
+          </div>
+        </div>
       </div>
+      <div className="mb-4"></div>
 
       <div className="grid gap-6">
-        {users.map((user) => {
+        {filteredAndSortedUsers.map((user) => {
           const stats = getUserStats(user);
 
           return (
