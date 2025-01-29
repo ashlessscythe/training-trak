@@ -150,6 +150,7 @@ model Document {
 enum Role {
   OWNER
   ADMIN
+  SITE_ADMIN
   SUPERVISOR
   USER
   PENDING

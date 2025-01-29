@@ -3,7 +3,11 @@ import { NextResponse } from "next/server";
 
 export default withAuth(
   async function middleware(req) {
-    const token = req.nextauth.token as { role?: string } | null;
+    const token = req.nextauth.token as {
+      role?: string;
+      email?: string;
+      siteId?: string;
+    } | null;
     const isAuth = !!token;
     const isAuthPage =
       req.nextUrl.pathname.startsWith("/auth/signin") ||
@@ -29,8 +33,22 @@ export default withAuth(
     }
 
     // Handle admin route access
-    if (isAdminRoute && token?.role !== "ADMIN") {
+    if (isAdminRoute && !["ADMIN", "OWNER"].includes(token?.role || "")) {
       return NextResponse.redirect(new URL("/dashboard", req.url));
+    }
+
+    // Handle site admin access to their site's users
+    if (req.nextUrl.pathname.startsWith("/sites/")) {
+      const pathParts = req.nextUrl.pathname.split("/");
+      const siteId = pathParts[2];
+      const isSiteUsersPage = pathParts[3] === "users";
+
+      if (isSiteUsersPage) {
+        // Allow ADMIN/OWNER access to any site, but SITE_ADMIN only to their site
+        if (token?.role === "SITE_ADMIN" && token?.siteId !== siteId) {
+          return NextResponse.redirect(new URL("/dashboard", req.url));
+        }
+      }
     }
   },
   {
@@ -44,10 +62,9 @@ export const config = {
   matcher: [
     "/dashboard/:path*",
     "/admin/:path*",
-    "/users/:path*",
-    "/sites/:path*",
     "/documents/:path*",
     "/sops/:path*",
     "/training/:path*",
+    "/sites/:path*",
   ],
 };

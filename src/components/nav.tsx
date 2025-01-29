@@ -2,8 +2,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
-
-const navigation = [
+const baseNavigation = [
   {
     name: "Dashboard",
     href: "/dashboard",
@@ -12,17 +11,23 @@ const navigation = [
   {
     name: "SOPs",
     href: "/sops",
-    roles: ["OWNER", "ADMIN", "SUPERVISOR", "USER"],
+    roles: ["OWNER", "ADMIN"],
+    siteHref: (siteId: string) => `/sites/${siteId}/sops`,
+    siteRoles: ["SITE_ADMIN", "SUPERVISOR", "USER"],
   },
   {
     name: "Training",
     href: "/training",
-    roles: ["OWNER", "ADMIN", "SUPERVISOR", "USER"],
+    roles: ["OWNER", "ADMIN"],
+    siteHref: (siteId: string) => `/sites/${siteId}/training`,
+    siteRoles: ["SITE_ADMIN", "SUPERVISOR", "USER"],
   },
   {
     name: "Documents",
     href: "/documents",
-    roles: ["OWNER", "ADMIN", "SUPERVISOR", "USER"],
+    roles: ["OWNER", "ADMIN"],
+    siteHref: (siteId: string) => `/sites/${siteId}/documents`,
+    siteRoles: ["SITE_ADMIN", "SUPERVISOR", "USER"],
   },
   { name: "Admin", href: "/admin", roles: ["OWNER", "ADMIN"] },
 ];
@@ -31,8 +36,46 @@ export function Nav() {
   const pathname = usePathname();
   const { data: session } = useSession();
   const userRole = session?.user?.role || "PENDING";
+  // Add site users link for site admins
+  // Build navigation based on user role and site
+  const buildNavigation = () => {
+    let nav = [...baseNavigation];
+    const siteId = session?.user?.site?.id;
 
-  const filteredNavigation = navigation.filter((item) =>
+    // Add site users link for site admins
+    if (userRole === "SITE_ADMIN" && siteId) {
+      nav.push({
+        name: "Site Users",
+        href: `/sites/${siteId}/users`,
+        roles: ["SITE_ADMIN"],
+      });
+    }
+
+    // Convert navigation items to their final form
+    return nav.map((item) => {
+      // If user is a supervisor or regular user and item has a site-specific version
+      if (
+        ["SITE_ADMIN", "SUPERVISOR", "USER"].includes(userRole) &&
+        item.siteHref &&
+        item.siteRoles?.includes(userRole) &&
+        siteId
+      ) {
+        return {
+          ...item,
+          href: item.siteHref(siteId),
+          roles: item.siteRoles,
+        };
+      }
+      // For admin/owner, keep original href and roles
+      return {
+        name: item.name,
+        href: item.href,
+        roles: item.roles,
+      };
+    });
+  };
+
+  const filteredNavigation = buildNavigation().filter((item) =>
     item.roles.includes(userRole as string)
   );
 

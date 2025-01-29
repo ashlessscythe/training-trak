@@ -1,10 +1,10 @@
 import { PrismaClient, Role, Site } from "@prisma/client";
-import NextAuth, { DefaultSession } from "next-auth";
+import { DefaultSession, NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 
 declare module "next-auth" {
-  interface Session extends DefaultSession {
+  interface Session {
     user: {
       id: string;
       role: Role;
@@ -20,7 +20,7 @@ declare module "next-auth" {
 
 const prisma = new PrismaClient();
 
-const handler = NextAuth({
+export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
       name: "Credentials",
@@ -86,6 +86,4 @@ const handler = NextAuth({
   pages: {
     signIn: "/auth/signin",
   },
-});
-
-export { handler as GET, handler as POST };
+};

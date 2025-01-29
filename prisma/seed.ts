@@ -16,6 +16,7 @@ const prisma = new PrismaClient();
 const ROLE_PASSWORDS = {
   OWNER: "ownerpass",
   ADMIN: "adminpass",
+  SITE_ADMIN: "sapass",
   SUPERVISOR: "supervisorpass",
   USER: "userpass",
   PENDING: "pendingpass",
@@ -169,7 +170,22 @@ async function main() {
     updatedAt: Date;
   }> = [];
 
-  // Create default admin user
+  // Create joe as siteadmin
+  const defaultSiteAdmin = await prisma.user.create({
+    data: {
+      email: "joe@joe.joe",
+      name: "Joe Admin",
+      password: await bcrypt.hash("adminpass", 10),
+      role: "SITE_ADMIN",
+      isActive: true,
+      siteId: sites[0].id,
+      departmentId: defaultDepartment.id,
+      positionId: defaultPosition.id,
+    },
+  });
+  users.push(defaultSiteAdmin);
+
+  // bob as superadmin
   const defaultAdmin = await prisma.user.create({
     data: {
       email: "bob@bob.bob",
@@ -186,7 +202,13 @@ async function main() {
 
   // Create other users
   for (const site of sites) {
-    const roles: Role[] = ["OWNER", "ADMIN", "SUPERVISOR", "USER"];
+    const roles: Role[] = [
+      "OWNER",
+      "ADMIN",
+      "SITE_ADMIN",
+      "SUPERVISOR",
+      "USER",
+    ];
     for (const role of roles) {
       // Skip creating another admin for the default site
       if (site.id === sites[0].id && role === "ADMIN") continue;
