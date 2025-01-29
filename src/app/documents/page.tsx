@@ -65,8 +65,9 @@ export default function DocumentsPage() {
         throw new Error(error.message || "Failed to create document");
       }
 
+      const newDocument = await response.json();
+      setDocuments((prev) => [...prev, newDocument]);
       setIsDialogOpen(false);
-      window.location.reload();
     } catch (error: any) {
       alert(error.message);
     }
@@ -85,9 +86,14 @@ export default function DocumentsPage() {
         throw new Error(error.message || "Failed to update document");
       }
 
+      const updatedDocument = await response.json();
+      setDocuments((prev) =>
+        prev.map((doc) =>
+          doc.id === updatedDocument.id ? updatedDocument : doc
+        )
+      );
       setIsDialogOpen(false);
       setSelectedDocument(undefined);
-      window.location.reload();
     } catch (error: any) {
       alert(error.message);
     }
@@ -106,7 +112,7 @@ export default function DocumentsPage() {
         throw new Error(error.message || "Failed to delete document");
       }
 
-      window.location.reload();
+      setDocuments((prev) => prev.filter((doc) => doc.id !== documentId));
     } catch (error: any) {
       alert(error.message);
     }

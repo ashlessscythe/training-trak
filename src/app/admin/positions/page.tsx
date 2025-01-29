@@ -54,8 +54,9 @@ export default function PositionsPage() {
         throw new Error(error.message || "Failed to create position");
       }
 
+      const newPosition = await response.json();
+      setPositions((prev) => [...prev, newPosition]);
       setIsDialogOpen(false);
-      window.location.reload();
     } catch (error: any) {
       alert(error.message);
     }
@@ -74,9 +75,14 @@ export default function PositionsPage() {
         throw new Error(error.message || "Failed to update position");
       }
 
+      const updatedPosition = await response.json();
+      setPositions((prev) =>
+        prev.map((pos) =>
+          pos.id === updatedPosition.id ? updatedPosition : pos
+        )
+      );
       setIsDialogOpen(false);
       setSelectedPosition(undefined);
-      window.location.reload();
     } catch (error: any) {
       alert(error.message);
     }
@@ -95,7 +101,7 @@ export default function PositionsPage() {
         throw new Error(error.message || "Failed to delete position");
       }
 
-      window.location.reload();
+      setPositions((prev) => prev.filter((pos) => pos.id !== positionId));
     } catch (error: any) {
       alert(error.message);
     }

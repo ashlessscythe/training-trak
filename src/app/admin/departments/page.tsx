@@ -54,8 +54,9 @@ export default function DepartmentsPage() {
         throw new Error(error.message || "Failed to create department");
       }
 
+      const newDepartment = await response.json();
+      setDepartments((prev) => [...prev, newDepartment]);
       setIsDialogOpen(false);
-      window.location.reload();
     } catch (error: any) {
       alert(error.message);
     }
@@ -74,9 +75,14 @@ export default function DepartmentsPage() {
         throw new Error(error.message || "Failed to update department");
       }
 
+      const updatedDepartment = await response.json();
+      setDepartments((prev) =>
+        prev.map((dept) =>
+          dept.id === updatedDepartment.id ? updatedDepartment : dept
+        )
+      );
       setIsDialogOpen(false);
       setSelectedDepartment(undefined);
-      window.location.reload();
     } catch (error: any) {
       alert(error.message);
     }
@@ -95,7 +101,7 @@ export default function DepartmentsPage() {
         throw new Error(error.message || "Failed to delete department");
       }
 
-      window.location.reload();
+      setDepartments((prev) => prev.filter((dept) => dept.id !== departmentId));
     } catch (error: any) {
       alert(error.message);
     }

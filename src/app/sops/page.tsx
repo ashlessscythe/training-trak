@@ -61,8 +61,9 @@ export default function SOPsPage() {
         throw new Error(error.message || "Failed to create SOP");
       }
 
+      const newSOP = await response.json();
+      setSOPs((prev) => [...prev, newSOP]);
       setIsDialogOpen(false);
-      window.location.reload();
     } catch (error: any) {
       alert(error.message);
     }
@@ -81,9 +82,12 @@ export default function SOPsPage() {
         throw new Error(error.message || "Failed to update SOP");
       }
 
+      const updatedSOP = await response.json();
+      setSOPs((prev) =>
+        prev.map((sop) => (sop.id === updatedSOP.id ? updatedSOP : sop))
+      );
       setIsDialogOpen(false);
       setSelectedSOP(undefined);
-      window.location.reload();
     } catch (error: any) {
       alert(error.message);
     }
@@ -102,7 +106,7 @@ export default function SOPsPage() {
         throw new Error(error.message || "Failed to delete SOP");
       }
 
-      window.location.reload();
+      setSOPs((prev) => prev.filter((sop) => sop.id !== sopId));
     } catch (error: any) {
       alert(error.message);
     }

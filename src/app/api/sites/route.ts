@@ -118,10 +118,46 @@ export async function POST(req: NextRequest) {
             users: true,
           },
         },
+        users: {
+          include: {
+            _count: {
+              select: {
+                uploadedDocs: true,
+                createdSOPs: true,
+                trainings: {
+                  where: {
+                    status: "APPROVED",
+                  },
+                },
+              },
+            },
+          },
+        },
       },
     });
 
-    return NextResponse.json(site);
+    const siteWithStats = {
+      ...site,
+      stats: {
+        totalUsers: site._count.users,
+        activeUsers: site.users.filter((user) => user.isActive).length,
+        totalDocuments: site.users.reduce(
+          (sum, user) => sum + user._count.uploadedDocs,
+          0
+        ),
+        totalSOPs: site.users.reduce(
+          (sum, user) => sum + user._count.createdSOPs,
+          0
+        ),
+        completedTrainings: site.users.reduce(
+          (sum, user) => sum + user._count.trainings,
+          0
+        ),
+      },
+      users: undefined,
+    };
+
+    return NextResponse.json(siteWithStats);
   } catch (error: any) {
     if (error.code === "P2002") {
       return NextResponse.json(
@@ -183,10 +219,46 @@ export async function PUT(req: NextRequest) {
             users: true,
           },
         },
+        users: {
+          include: {
+            _count: {
+              select: {
+                uploadedDocs: true,
+                createdSOPs: true,
+                trainings: {
+                  where: {
+                    status: "APPROVED",
+                  },
+                },
+              },
+            },
+          },
+        },
       },
     });
 
-    return NextResponse.json(site);
+    const siteWithStats = {
+      ...site,
+      stats: {
+        totalUsers: site._count.users,
+        activeUsers: site.users.filter((user) => user.isActive).length,
+        totalDocuments: site.users.reduce(
+          (sum, user) => sum + user._count.uploadedDocs,
+          0
+        ),
+        totalSOPs: site.users.reduce(
+          (sum, user) => sum + user._count.createdSOPs,
+          0
+        ),
+        completedTrainings: site.users.reduce(
+          (sum, user) => sum + user._count.trainings,
+          0
+        ),
+      },
+      users: undefined,
+    };
+
+    return NextResponse.json(siteWithStats);
   } catch (error: any) {
     if (error.code === "P2002") {
       return NextResponse.json(
@@ -231,9 +303,52 @@ export async function DELETE(req: NextRequest) {
     const site = await prisma.site.update({
       where: { id },
       data: { isActive: false },
+      include: {
+        _count: {
+          select: {
+            users: true,
+          },
+        },
+        users: {
+          include: {
+            _count: {
+              select: {
+                uploadedDocs: true,
+                createdSOPs: true,
+                trainings: {
+                  where: {
+                    status: "APPROVED",
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
     });
 
-    return NextResponse.json(site);
+    const siteWithStats = {
+      ...site,
+      stats: {
+        totalUsers: site._count.users,
+        activeUsers: site.users.filter((user) => user.isActive).length,
+        totalDocuments: site.users.reduce(
+          (sum, user) => sum + user._count.uploadedDocs,
+          0
+        ),
+        totalSOPs: site.users.reduce(
+          (sum, user) => sum + user._count.createdSOPs,
+          0
+        ),
+        completedTrainings: site.users.reduce(
+          (sum, user) => sum + user._count.trainings,
+          0
+        ),
+      },
+      users: undefined,
+    };
+
+    return NextResponse.json(siteWithStats);
   } catch (error) {
     return NextResponse.json(
       { error: "Internal server error" },

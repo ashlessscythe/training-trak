@@ -51,8 +51,9 @@ export default function SitesPage() {
         throw new Error(error.message || "Failed to create site");
       }
 
+      const newSite = await response.json();
+      setSites((prev) => [...prev, newSite]);
       setIsDialogOpen(false);
-      window.location.reload();
     } catch (error: any) {
       alert(error.message);
     }
@@ -71,9 +72,12 @@ export default function SitesPage() {
         throw new Error(error.message || "Failed to update site");
       }
 
+      const updatedSite = await response.json();
+      setSites((prev) =>
+        prev.map((site) => (site.id === updatedSite.id ? updatedSite : site))
+      );
       setIsDialogOpen(false);
       setSelectedSite(undefined);
-      window.location.reload();
     } catch (error: any) {
       alert(error.message);
     }
@@ -92,7 +96,7 @@ export default function SitesPage() {
         throw new Error(error.message || "Failed to delete site");
       }
 
-      window.location.reload();
+      setSites((prev) => prev.filter((site) => site.id !== siteId));
     } catch (error: any) {
       alert(error.message);
     }
