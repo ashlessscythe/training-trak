@@ -26,6 +26,8 @@ type SOPWithRelations = SOP & {
   };
 };
 
+const rolesList = Object.values(Role)
+
 export default function SiteSopsPage() {
   const params = useParams();
   const siteId = params.id as string;
@@ -174,10 +176,11 @@ export default function SiteSopsPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="ALL">All Roles</SelectItem>
-              <SelectItem value="SITE_ADMIN">Site Admin</SelectItem>
-              <SelectItem value="SITE_MANAGER">Site Manager</SelectItem>
-              <SelectItem value="TRAINER">Trainer</SelectItem>
-              <SelectItem value="TRAINEE">Trainee</SelectItem>
+              {rolesList.map((role) => (
+                <SelectItem key={role} value={role}>
+                  {role.replace("_", " ")} {/* Optional: Format display text */}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
 

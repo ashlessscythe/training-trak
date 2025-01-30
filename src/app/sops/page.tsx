@@ -24,6 +24,8 @@ type SOPWithRelations = SOP & {
   };
 };
 
+const rolesList = Object.values(Role);
+
 function formatRole(role: Role) {
   return role
     .split("_")
@@ -167,10 +169,13 @@ export default function SOPsPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="ALL">All Roles</SelectItem>
-              <SelectItem value="SITE_ADMIN">Site Admin</SelectItem>
-              <SelectItem value="SITE_MANAGER">Site Manager</SelectItem>
-              <SelectItem value="TRAINER">Trainer</SelectItem>
-              <SelectItem value="TRAINEE">Trainee</SelectItem>
+              {rolesList.map((role) => (
+                <SelectItem key={role} value={role}>
+                  {formatRole(role)}
+                </SelectItem>
+              ))
+    
+              }
             </SelectContent>
           </Select>
 

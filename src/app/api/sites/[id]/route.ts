@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
 export async function GET(
-  req: NextRequest,
+  request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
@@ -21,18 +21,18 @@ export async function GET(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
+    const { id } = params
+
     // Only allow access if user belongs to this site or is OWNER/ADMIN
     if (
       !["OWNER", "ADMIN"].includes(currentUser.role) &&
-      currentUser.siteId !== params.id
+      currentUser.siteId !== id
     ) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const site = await prisma.site.findUnique({
-      where: {
-        id: params.id,
-      },
+      where: { id },
     });
 
     if (!site) {

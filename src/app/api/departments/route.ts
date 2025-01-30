@@ -5,15 +5,15 @@ export async function GET(request: NextRequest) {
   try {
     const departments = await prisma.department.findMany({
       where: { isActive: true },
-      orderBy: { name: "asc" },
-    });
+      orderBy: { name: 'asc' },
+    })
     return NextResponse.json(departments);
   } catch (error) {
-    console.error("Failed to fetch departments:", error);
+    console.error("Failed to fetch deptartments", error)
     return NextResponse.json(
       { error: "Failed to fetch departments" },
-      { status: 500 }
-    );
+      { status: 500 },
+    )  
   }
 }
 
