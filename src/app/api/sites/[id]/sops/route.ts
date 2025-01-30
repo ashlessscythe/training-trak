@@ -2,34 +2,74 @@ import { getServerSession } from "next-auth/next";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
-export async function GET() {
+async function checkUserAccess(siteId: string, requiresWrite = false) {
+  const session = await getServerSession();
+  if (!session?.user?.email) {
+    return { error: "Unauthorized", status: 401 };
+  }
+
+  const currentUser = await prisma.user.findUnique({
+    where: { email: session.user.email },
+    select: { id: true, role: true, siteId: true },
+  });
+
+  if (!currentUser) {
+    return { error: "Forbidden", status: 403 };
+  }
+
+  // Only allow access if user belongs to this site or is OWNER/ADMIN
+  if (
+    !["OWNER", "ADMIN"].includes(currentUser.role) &&
+    currentUser.siteId !== siteId
+  ) {
+    return { error: "Forbidden", status: 403 };
+  }
+
+  // For write operations, check additional role requirements
+  if (
+    requiresWrite &&
+    !["OWNER", "ADMIN", "SITE_ADMIN", "SUPERVISOR"].includes(currentUser.role)
+  ) {
+    return { error: "Insufficient permissions", status: 403 };
+  }
+
+  return { currentUser };
+}
+
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
   try {
-    const session = await getServerSession();
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { id: siteId } = params;
+    const access = await checkUserAccess(siteId);
+    if ("error" in access) {
+      return NextResponse.json(
+        { error: access.error },
+        { status: access.status }
+      );
     }
 
-    const currentUser = await prisma.user.findUnique({
-      where: { email: session.user.email },
-      select: { role: true, siteId: true },
-    });
-
-    if (!currentUser) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
-    // If user is OWNER or ADMIN, they can see all SOPs
-    // Otherwise, only show SOPs from their site
+    // Get SOPs for this site
     const sops = await prisma.sOP.findMany({
-      where: !["OWNER", "ADMIN"].includes(currentUser.role)
-        ? {
+      where: {
+        OR: [
+          {
             createdBy: {
               site: {
-                id: currentUser.siteId,
+                id: siteId,
               },
             },
-          }
-        : undefined,
+          },
+          {
+            lastModifiedBy: {
+              site: {
+                id: siteId,
+              },
+            },
+          },
+        ],
+      },
       include: {
         createdBy: {
           select: {
@@ -77,36 +117,20 @@ export async function GET() {
   }
 }
 
-export async function POST(req: NextRequest) {
+export async function POST(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
   try {
-    const session = await getServerSession();
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const currentUser = await prisma.user.findUnique({
-      where: { email: session.user.email },
-    });
-
-    // Allow OWNER, ADMIN, SITE_ADMIN, and SUPERVISOR roles to create SOPs
-    // But SITE_ADMIN and SUPERVISOR can only create for their site
-    if (
-      !currentUser ||
-      !["OWNER", "ADMIN", "SITE_ADMIN", "SUPERVISOR"].includes(currentUser.role)
-    ) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
-    // For SITE_ADMIN and SUPERVISOR, ensure they can only create SOPs for their site
-    if (
-      ["SITE_ADMIN", "SUPERVISOR"].includes(currentUser.role) &&
-      !currentUser.siteId
-    ) {
+    const { id: siteId } = params;
+    const access = await checkUserAccess(siteId, true);
+    if ("error" in access) {
       return NextResponse.json(
-        { error: "User must be assigned to a site" },
-        { status: 403 }
+        { error: access.error },
+        { status: access.status }
       );
     }
+    const { currentUser } = access;
 
     const data = await req.json();
     const { name, description, version, content, requiredRoles } = data;
@@ -175,25 +199,20 @@ export async function POST(req: NextRequest) {
   }
 }
 
-export async function PUT(req: NextRequest) {
+export async function PUT(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
   try {
-    const session = await getServerSession();
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { id: siteId } = params;
+    const access = await checkUserAccess(siteId, true);
+    if ("error" in access) {
+      return NextResponse.json(
+        { error: access.error },
+        { status: access.status }
+      );
     }
-
-    const currentUser = await prisma.user.findUnique({
-      where: { email: session.user.email },
-    });
-
-    // Allow OWNER, ADMIN, SITE_ADMIN, and SUPERVISOR roles to edit SOPs
-    // But SITE_ADMIN and SUPERVISOR can only edit SOPs from their site
-    if (
-      !currentUser ||
-      !["OWNER", "ADMIN", "SITE_ADMIN", "SUPERVISOR"].includes(currentUser.role)
-    ) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    const { currentUser } = access;
 
     const data = await req.json();
     const { id, name, description, version, content, requiredRoles, isActive } =
@@ -226,13 +245,10 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: "SOP not found" }, { status: 404 });
     }
 
-    // For SITE_ADMIN and SUPERVISOR, ensure they can only edit SOPs from their site
-    if (
-      ["SITE_ADMIN", "SUPERVISOR"].includes(currentUser.role) &&
-      currentUser.siteId !== existingSop.createdBy.site.id
-    ) {
+    // Verify the SOP belongs to this site
+    if (existingSop.createdBy.site.id !== siteId) {
       return NextResponse.json(
-        { error: "Cannot edit SOPs from other sites" },
+        { error: "SOP does not belong to this site" },
         { status: 403 }
       );
     }
@@ -300,16 +316,19 @@ export async function PUT(req: NextRequest) {
   }
 }
 
-export async function DELETE(req: NextRequest) {
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
   try {
-    const session = await getServerSession();
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { id: siteId } = params;
+    const access = await checkUserAccess(siteId, true);
+    if ("error" in access) {
+      return NextResponse.json(
+        { error: access.error },
+        { status: access.status }
+      );
     }
-
-    const currentUser = await prisma.user.findUnique({
-      where: { email: session.user.email },
-    });
 
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
@@ -341,22 +360,10 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: "SOP not found" }, { status: 404 });
     }
 
-    // Allow OWNER, ADMIN, SITE_ADMIN, and SUPERVISOR roles to delete SOPs
-    // But SITE_ADMIN and SUPERVISOR can only delete SOPs from their site
-    if (
-      !currentUser ||
-      !["OWNER", "ADMIN", "SITE_ADMIN", "SUPERVISOR"].includes(currentUser.role)
-    ) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
-    // For SITE_ADMIN and SUPERVISOR, ensure they can only delete SOPs from their site
-    if (
-      ["SITE_ADMIN", "SUPERVISOR"].includes(currentUser.role) &&
-      currentUser.siteId !== sop.createdBy.site.id
-    ) {
+    // Verify the SOP belongs to this site
+    if (sop.createdBy.site.id !== siteId) {
       return NextResponse.json(
-        { error: "Cannot delete SOPs from other sites" },
+        { error: "SOP does not belong to this site" },
         { status: 403 }
       );
     }

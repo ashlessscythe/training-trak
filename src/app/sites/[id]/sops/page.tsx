@@ -26,7 +26,7 @@ type SOPWithRelations = SOP & {
   };
 };
 
-const rolesList = Object.values(Role)
+const rolesList = Object.values(Role);
 
 export default function SiteSopsPage() {
   const params = useParams();
@@ -48,18 +48,11 @@ export default function SiteSopsPage() {
     const fetchData = async () => {
       try {
         const [sopsRes, siteRes] = await Promise.all([
-          fetch("/api/sops").then((res) => res.json()),
+          fetch(`/api/sites/${siteId}/sops`).then((res) => res.json()),
           fetch(`/api/sites/${siteId}`).then((res) => res.json()),
         ]);
 
-        // Filter SOPs for this site
-        const siteSops = sopsRes.filter(
-          (sop: SOPWithRelations) =>
-            sop.createdBy.siteId === siteId ||
-            sop.lastModifiedBy.siteId === siteId
-        );
-
-        setSops(siteSops);
+        setSops(sopsRes);
         setSiteName(siteRes.name);
       } catch (error) {
         console.error("Failed to fetch data:", error);
@@ -73,7 +66,7 @@ export default function SiteSopsPage() {
 
   const handleCreateSOP = async (data: any) => {
     try {
-      const response = await fetch("/api/sops", {
+      const response = await fetch(`/api/sites/${siteId}/sops`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
@@ -94,7 +87,7 @@ export default function SiteSopsPage() {
 
   const handleUpdateSOP = async (data: any) => {
     try {
-      const response = await fetch("/api/sops", {
+      const response = await fetch(`/api/sites/${siteId}/sops`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
@@ -120,7 +113,7 @@ export default function SiteSopsPage() {
     if (!confirm("Are you sure you want to delete this SOP?")) return;
 
     try {
-      const response = await fetch(`/api/sops?id=${sopId}`, {
+      const response = await fetch(`/api/sites/${siteId}/sops?id=${sopId}`, {
         method: "DELETE",
       });
 
