@@ -273,21 +273,49 @@ async function main() {
   ];
 
   const documents = await Promise.all(
-    Array.from({ length: count * 2 }, async () => {
+    Array.from({ length: count * 5 }, async () => {
       const uploadedBy = faker.helpers.arrayElement(users);
       const sop = faker.helpers.arrayElement(sops);
       const type = faker.helpers.arrayElement(documentTypes);
 
+      // Generate a descriptive name with extension
+      const extensions = ["txt", "pdf", "docx", "xlsx", "csv"];
+      const extension = faker.helpers.arrayElement(extensions);
+      const docType = type.toLowerCase().replace(/_/g, "-");
+      const timestamp = faker.date.recent().toISOString().split("T")[0];
+      const name = `${docType}-${timestamp}-${faker.string.alphanumeric(
+        6
+      )}.${extension}`;
+
+      // Generate appropriate content based on extension
+      let content: Buffer;
+      if (extension === "txt") {
+        content = Buffer.from(faker.lorem.paragraphs(3));
+      } else {
+        // For other types, create a larger buffer to simulate real documents
+        content = Buffer.from(
+          faker.lorem.paragraphs(10) + faker.lorem.paragraphs(10)
+        );
+      }
+
       return prisma.document.create({
         data: {
-          name: useFaker
-            ? faker.system.fileName()
-            : `Document ${faker.number.int(999)}`,
+          name,
           type,
-          url: faker.internet.url(),
+          content,
           metadata: {
-            fileSize: faker.number.int({ min: 100, max: 10000 }),
-            mimeType: faker.system.mimeType(),
+            fileSize: content.length,
+            mimeType:
+              extension === "txt"
+                ? "text/plain"
+                : extension === "pdf"
+                ? "application/pdf"
+                : extension === "docx"
+                ? "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                : extension === "xlsx"
+                ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                : "text/csv",
+            uploadDate: new Date().toISOString(),
             tags: faker.helpers.arrayElements(
               ["important", "draft", "final", "archived"],
               faker.number.int({ min: 1, max: 3 })

@@ -3,7 +3,10 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { DocumentType } from "@prisma/client";
 
-export async function GET() {
+export async function GET(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
   try {
     const session = await getServerSession();
     if (!session?.user?.email) {
@@ -19,15 +22,20 @@ export async function GET() {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // If user is OWNER or ADMIN, they can see all documents
-    // Otherwise, they can only see documents from their site
+    // Check if user has access to this site
+    if (
+      !["OWNER", "ADMIN"].includes(currentUser.role) &&
+      currentUser.siteId !== params.id
+    ) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     const documents = await prisma.document.findMany({
       where: {
         uploadedBy: {
-          siteId: !["OWNER", "ADMIN"].includes(currentUser.role)
-            ? currentUser.siteId
-            : undefined,
+          siteId: params.id,
         },
+        type: "OTHER", // Only get site-specific documents
       },
       include: {
         uploadedBy: {
@@ -60,7 +68,10 @@ export async function GET() {
   }
 }
 
-export async function POST(req: NextRequest) {
+export async function POST(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
   try {
     const session = await getServerSession();
     if (!session?.user?.email) {
@@ -77,6 +88,14 @@ export async function POST(req: NextRequest) {
     });
 
     if (!currentUser) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    // Check if user has access to this site
+    if (
+      !["OWNER", "ADMIN"].includes(currentUser.role) &&
+      currentUser.siteId !== params.id
+    ) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -143,7 +162,10 @@ export async function POST(req: NextRequest) {
   }
 }
 
-export async function PUT(req: NextRequest) {
+export async function PUT(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
   try {
     const session = await getServerSession();
     if (!session?.user?.email) {
@@ -163,8 +185,16 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
+    // Check if user has access to this site
+    if (
+      !["OWNER", "ADMIN"].includes(currentUser.role) &&
+      currentUser.siteId !== params.id
+    ) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     const formData = await req.formData();
-    const id = formData.get("id") as string;
+    const documentId = formData.get("id") as string;
     const file = formData.get("content") as File | null;
     // If there's a new file, use its name, otherwise keep existing name
     const name = file ? file.name : (formData.get("name") as string);
@@ -183,16 +213,16 @@ export async function PUT(req: NextRequest) {
       : baseMetadata;
     const sopId = formData.get("sopId") as string;
 
-    if (!id) {
+    if (!documentId) {
       return NextResponse.json(
         { error: "Document ID is required" },
         { status: 400 }
       );
     }
 
-    // Check if user has access to this document
-    const document = await prisma.document.findUnique({
-      where: { id },
+    // Check if document belongs to this site
+    const existingDocument = await prisma.document.findUnique({
+      where: { id: documentId },
       select: {
         uploadedById: true,
         uploadedBy: {
@@ -203,12 +233,11 @@ export async function PUT(req: NextRequest) {
       },
     });
 
-    if (
-      !document ||
-      (!["OWNER", "ADMIN"].includes(currentUser.role) &&
-        document.uploadedBy.siteId !== currentUser.siteId)
-    ) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    if (!existingDocument || existingDocument.uploadedBy.siteId !== params.id) {
+      return NextResponse.json(
+        { error: "Document not found" },
+        { status: 404 }
+      );
     }
 
     const updateData: any = {
@@ -231,7 +260,7 @@ export async function PUT(req: NextRequest) {
     );
 
     const updatedDocument = await prisma.document.update({
-      where: { id },
+      where: { id: documentId },
       data: updateData,
       include: {
         uploadedBy: {
@@ -262,7 +291,10 @@ export async function PUT(req: NextRequest) {
   }
 }
 
-export async function DELETE(req: NextRequest) {
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
   try {
     const session = await getServerSession();
     if (!session?.user?.email) {
@@ -282,21 +314,28 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const { searchParams } = new URL(req.url);
-    const id = searchParams.get("id");
+    // Check if user has access to this site
+    if (
+      !["OWNER", "ADMIN"].includes(currentUser.role) &&
+      currentUser.siteId !== params.id
+    ) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
 
-    if (!id) {
+    const { searchParams } = new URL(req.url);
+    const documentId = searchParams.get("id");
+
+    if (!documentId) {
       return NextResponse.json(
         { error: "Document ID is required" },
         { status: 400 }
       );
     }
 
-    // Check if user has access to this document
+    // Check if document belongs to this site
     const document = await prisma.document.findUnique({
-      where: { id },
+      where: { id: documentId },
       select: {
-        uploadedById: true,
         uploadedBy: {
           select: {
             siteId: true,
@@ -305,16 +344,15 @@ export async function DELETE(req: NextRequest) {
       },
     });
 
-    if (
-      !document ||
-      (!["OWNER", "ADMIN"].includes(currentUser.role) &&
-        document.uploadedBy.siteId !== currentUser.siteId)
-    ) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    if (!document || document.uploadedBy.siteId !== params.id) {
+      return NextResponse.json(
+        { error: "Document not found" },
+        { status: 404 }
+      );
     }
 
     await prisma.document.delete({
-      where: { id },
+      where: { id: documentId },
     });
 
     return NextResponse.json({ success: true });

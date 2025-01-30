@@ -69,10 +69,16 @@ export default function DocumentsPage() {
 
   const handleCreateDocument = async (data: any) => {
     try {
+      const formData = new FormData();
+      formData.append("content", data.content);
+      formData.append("name", data.name);
+      formData.append("type", data.type);
+      formData.append("metadata", JSON.stringify(data.metadata));
+      if (data.sopId) formData.append("sopId", data.sopId);
+
       const response = await fetch("/api/documents", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: formData,
       });
 
       if (!response.ok) {
@@ -90,10 +96,17 @@ export default function DocumentsPage() {
 
   const handleUpdateDocument = async (data: any) => {
     try {
+      const formData = new FormData();
+      formData.append("id", data.id);
+      if (data.content) formData.append("content", data.content);
+      formData.append("name", data.name);
+      formData.append("type", data.type);
+      formData.append("metadata", JSON.stringify(data.metadata));
+      if (data.sopId) formData.append("sopId", data.sopId);
+
       const response = await fetch("/api/documents", {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: formData,
       });
 
       if (!response.ok) {
@@ -128,6 +141,30 @@ export default function DocumentsPage() {
       }
 
       setDocuments((prev) => prev.filter((doc) => doc.id !== documentId));
+    } catch (error: any) {
+      alert(error.message);
+    }
+  };
+
+  const handleDownloadDocument = async (
+    documentId: string,
+    fileName: string
+  ) => {
+    try {
+      const response = await fetch(`/api/documents/${documentId}/download`);
+      if (!response.ok) {
+        throw new Error("Failed to download document");
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
     } catch (error: any) {
       alert(error.message);
     }
@@ -274,6 +311,15 @@ export default function DocumentsPage() {
                     <Button
                       variant="outline"
                       size="sm"
+                      onClick={() =>
+                        handleDownloadDocument(document.id, document.name)
+                      }
+                    >
+                      Download
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
                       onClick={() => {
                         setSelectedDocument(document);
                         setIsDialogOpen(true);
@@ -296,19 +342,6 @@ export default function DocumentsPage() {
                   <div>
                     <h3 className="font-semibold mb-2">Details</h3>
                     <dl className="space-y-1 text-sm">
-                      <div>
-                        <dt className="inline text-muted-foreground">URL:</dt>
-                        <dd className="inline ml-1">
-                          <a
-                            href={document.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-600 hover:underline"
-                          >
-                            {document.url}
-                          </a>
-                        </dd>
-                      </div>
                       {document.sop && (
                         <div>
                           <dt className="inline text-muted-foreground">SOP:</dt>

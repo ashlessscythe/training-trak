@@ -7,18 +7,15 @@ import { DocumentType, SOP } from "@prisma/client";
 interface DocumentFormProps {
   sops: SOP[];
   onSubmit: (data: {
-    name: string;
     type: DocumentType;
-    url: string;
+    content: File;
     metadata?: any;
     sopId?: string;
     id?: string;
   }) => Promise<void>;
   initialData?: {
     id: string;
-    name: string;
     type: DocumentType;
-    url: string;
     metadata?: any;
     sopId?: string;
   };
@@ -32,9 +29,7 @@ export function DocumentForm({
   onCancel,
 }: DocumentFormProps) {
   const [formData, setFormData] = useState({
-    name: initialData?.name || "",
     type: initialData?.type || DocumentType.OTHER,
-    url: initialData?.url || "",
     metadata: initialData?.metadata || {
       description: "",
       category: "",
@@ -44,14 +39,20 @@ export function DocumentForm({
     sopId: initialData?.sopId || "",
   });
 
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!selectedFile && !initialData) {
+      alert("Please select a file");
+      return;
+    }
     setIsSubmitting(true);
     try {
       await onSubmit({
         ...formData,
+        content: selectedFile!,
         id: initialData?.id,
         sopId: formData.sopId || undefined,
       });
@@ -60,21 +61,18 @@ export function DocumentForm({
     }
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+
+    const file = files[0];
+    if (!file) return;
+
+    setSelectedFile(file);
+  };
+
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div>
-        <label className="block text-sm font-medium mb-1">Name</label>
-        <input
-          type="text"
-          required
-          value={formData.name}
-          onChange={(e) =>
-            setFormData((prev) => ({ ...prev, name: e.target.value }))
-          }
-          className="w-full p-2 border rounded-md"
-        />
-      </div>
-
       <div>
         <label className="block text-sm font-medium mb-1">Type</label>
         <select
@@ -100,17 +98,19 @@ export function DocumentForm({
       </div>
 
       <div>
-        <label className="block text-sm font-medium mb-1">URL</label>
+        <label className="block text-sm font-medium mb-1">Document File</label>
         <input
-          type="url"
-          required
-          value={formData.url}
-          onChange={(e) =>
-            setFormData((prev) => ({ ...prev, url: e.target.value }))
-          }
+          type="file"
+          required={!initialData}
+          onChange={handleFileChange}
           className="w-full p-2 border rounded-md"
-          placeholder="https://"
+          accept=".pdf,.doc,.docx,.txt"
         />
+        {selectedFile && (
+          <p className="text-sm text-muted-foreground mt-1">
+            Selected file: {selectedFile.name}
+          </p>
+        )}
       </div>
 
       <div>

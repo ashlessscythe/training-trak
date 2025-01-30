@@ -39,9 +39,7 @@ export function DocumentDialog({
             document
               ? {
                   id: document.id,
-                  name: document.name,
                   type: document.type,
-                  url: document.url,
                   metadata: document.metadata,
                   sopId: document.sopId || undefined,
                 }

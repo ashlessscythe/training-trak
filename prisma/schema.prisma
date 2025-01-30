@@ -131,8 +131,9 @@ model TrainingProgress {
 model Document {
   id           String       @id @default(cuid())
   name         String
+  filename     String?      @default(uuid())
   type         DocumentType
-  url          String // Storage URL
+  content      Bytes // Document content stored as bytes
   metadata     Json? // Flexible metadata storage
   sop          SOP?         @relation(fields: [sopId], references: [id])
   sopId        String?

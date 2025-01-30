@@ -39,6 +39,7 @@ export default function SiteDocumentsPage() {
   const siteId = params.id as string;
 
   const [documents, setDocuments] = useState<DocumentWithUploader[]>([]);
+  const [error, setError] = useState<string | null>(null);
   const [sops, setSops] = useState<SOP[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -58,22 +59,49 @@ export default function SiteDocumentsPage() {
     const fetchData = async () => {
       try {
         const [documentsRes, sopsRes, siteRes] = await Promise.all([
-          fetch("/api/documents").then((res) => res.json()),
-          fetch("/api/sops").then((res) => res.json()),
-          fetch(`/api/sites/${siteId}`).then((res) => res.json()),
+          fetch(`/api/sites/${siteId}/documents`).then(async (res) => {
+            if (!res.ok) {
+              const error = await res.json();
+              throw new Error(error.message || "Failed to fetch documents");
+            }
+            return res.json();
+          }),
+          fetch("/api/sops").then(async (res) => {
+            if (!res.ok) {
+              const error = await res.json();
+              throw new Error(error.message || "Failed to fetch SOPs");
+            }
+            return res.json();
+          }),
+          fetch(`/api/sites/${siteId}`).then(async (res) => {
+            if (!res.ok) {
+              const error = await res.json();
+              throw new Error(error.message || "Failed to fetch site details");
+            }
+            return res.json();
+          }),
         ]);
 
-        // Filter documents for this site
-        const siteDocuments = documentsRes.filter(
-          (doc: DocumentWithUploader) =>
-            doc.uploadedBy.siteId === siteId && doc.type === "OTHER"
-        );
+        // Validate responses
+        if (!Array.isArray(documentsRes)) {
+          throw new Error("Invalid documents response format");
+        }
+        if (!Array.isArray(sopsRes)) {
+          throw new Error("Invalid SOPs response format");
+        }
+        if (!siteRes?.name) {
+          throw new Error("Invalid site response format");
+        }
 
-        setDocuments(siteDocuments);
+        setDocuments(documentsRes);
         setSops(sopsRes);
         setSiteName(siteRes.name);
+        setError(null);
       } catch (error) {
         console.error("Failed to fetch data:", error);
+        setError(
+          error instanceof Error ? error.message : "Failed to fetch data"
+        );
       } finally {
         setIsLoading(false);
       }
@@ -84,14 +112,16 @@ export default function SiteDocumentsPage() {
 
   const handleCreateDocument = async (data: any) => {
     try {
-      const response = await fetch("/api/documents", {
+      const formData = new FormData();
+      formData.append("content", data.content);
+      formData.append("name", data.name);
+      formData.append("type", "OTHER");
+      formData.append("metadata", JSON.stringify(data.metadata || {}));
+      if (data.sopId) formData.append("sopId", data.sopId);
+
+      const response = await fetch(`/api/sites/${siteId}/documents`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...data,
-          type: "OTHER",
-          metadata: data.metadata || {},
-        }),
+        body: formData,
       });
 
       if (!response.ok) {
@@ -109,10 +139,17 @@ export default function SiteDocumentsPage() {
 
   const handleUpdateDocument = async (data: any) => {
     try {
-      const response = await fetch("/api/documents", {
+      const formData = new FormData();
+      formData.append("id", data.id);
+      if (data.content) formData.append("content", data.content);
+      formData.append("name", data.name);
+      formData.append("type", "OTHER");
+      formData.append("metadata", JSON.stringify(data.metadata || {}));
+      if (data.sopId) formData.append("sopId", data.sopId);
+
+      const response = await fetch(`/api/sites/${siteId}/documents`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: formData,
       });
 
       if (!response.ok) {
@@ -137,9 +174,12 @@ export default function SiteDocumentsPage() {
     if (!confirm("Are you sure you want to delete this document?")) return;
 
     try {
-      const response = await fetch(`/api/documents?id=${documentId}`, {
-        method: "DELETE",
-      });
+      const response = await fetch(
+        `/api/sites/${siteId}/documents?id=${documentId}`,
+        {
+          method: "DELETE",
+        }
+      );
 
       if (!response.ok) {
         const error = await response.json();
@@ -152,10 +192,42 @@ export default function SiteDocumentsPage() {
     }
   };
 
+  const handleDownloadDocument = async (
+    documentId: string,
+    fileName: string
+  ) => {
+    try {
+      const response = await fetch(`/api/documents/${documentId}/download`);
+      if (!response.ok) {
+        throw new Error("Failed to download document");
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error: any) {
+      alert(error.message);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="container mx-auto py-10">
         <div className="text-center">Loading...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="container mx-auto py-10">
+        <div className="text-center text-red-500">{error}</div>
       </div>
     );
   }
@@ -332,14 +404,13 @@ export default function SiteDocumentsPage() {
                   >
                     Delete
                   </Button>
-                  <a
-                    href={doc.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-9 px-3"
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={() => handleDownloadDocument(doc.id, doc.name)}
                   >
-                    View
-                  </a>
+                    Download
+                  </Button>
                 </div>
               </div>
             </Card>
