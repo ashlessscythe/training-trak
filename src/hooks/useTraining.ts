@@ -1,5 +1,6 @@
 import { TrainingProgress, TrainingStatus } from "@prisma/client";
 import { useResourceList } from "./useResourceList";
+import { useMemo } from "react";
 
 interface TrainingFilters {
   status: TrainingStatus | "ALL";
@@ -27,19 +28,63 @@ interface UseTrainingOptions {
 }
 
 export function useTraining({ siteId }: UseTrainingOptions) {
-  const baseUrl = "/api/trainings";
+  const baseUrl = useMemo(() => "/api/trainings", []);
 
-  const filterConfig = {
-    status: {
-      predicate: (
-        training: TrainingWithRelations,
-        value: TrainingStatus | "ALL"
-      ) => {
-        if (value === "ALL") return true;
-        return training.status === value;
+  const filterConfig = useMemo(
+    () => ({
+      status: {
+        predicate: (
+          training: TrainingWithRelations,
+          value: TrainingStatus | "ALL"
+        ) => {
+          if (value === "ALL") return true;
+          return training.status === value;
+        },
       },
-    },
-  };
+    }),
+    []
+  );
+
+  const resourceOptions = useMemo(
+    () => ({
+      fetchUrl: baseUrl,
+      filterOptions: [
+        {
+          key: "status" as keyof TrainingFilters,
+          value: "ALL",
+          predicate: filterConfig.status.predicate,
+        },
+      ],
+      sortOptions: [
+        {
+          key: "date",
+          getValue: (training: TrainingWithRelations) =>
+            new Date(training.updatedAt),
+        },
+        {
+          key: "name",
+          getValue: (training: TrainingWithRelations) => training.sop.name,
+        },
+        {
+          key: "status",
+          getValue: (training: TrainingWithRelations) => training.status,
+        },
+      ],
+      onUpdateResource: async (data: any) => {
+        const response = await fetch(baseUrl, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.message || "Failed to update training");
+        }
+      },
+    }),
+    [baseUrl, filterConfig]
+  );
 
   const {
     resources: trainings,
@@ -56,64 +101,36 @@ export function useTraining({ siteId }: UseTrainingOptions) {
     setSortOrder,
     fetchResources: fetchTrainings,
     handleUpdateResource: handleUpdate,
-  } = useResourceList<TrainingWithRelations, TrainingFilters>({
-    fetchUrl: baseUrl,
-    filterOptions: [
-      {
-        key: "status",
-        value: "ALL",
-        predicate: filterConfig.status.predicate,
-      },
-    ],
-    sortOptions: [
-      {
-        key: "date",
-        getValue: (training) => new Date(training.updatedAt),
-      },
-      {
-        key: "name",
-        getValue: (training) => training.sop.name,
-      },
-      {
-        key: "status",
-        getValue: (training) => training.status,
-      },
-    ],
-    onUpdateResource: async (data) => {
-      const response = await fetch(baseUrl, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Failed to update training");
-      }
-    },
-  });
+  } = useResourceList<TrainingWithRelations, TrainingFilters>(resourceOptions);
 
   // Filter trainings for specific site if siteId is provided
-  const filteredTrainings = siteId
-    ? trainings.filter(
-        (training) =>
-          training.user.siteId === siteId ||
-          training.sop.createdBy.siteId === siteId
-      )
-    : trainings;
+  const filteredTrainings = useMemo(
+    () =>
+      siteId
+        ? trainings.filter(
+            (training) =>
+              training.user.siteId === siteId ||
+              training.sop.createdBy.siteId === siteId
+          )
+        : trainings,
+    [siteId, trainings]
+  );
 
-  const getStatusColor = (status: TrainingStatus) => {
-    switch (status) {
-      case "APPROVED":
-        return "text-green-600";
-      case "REJECTED":
-        return "text-red-600";
-      case "COMPLETED":
-        return "text-blue-600";
-      default:
-        return "text-yellow-600";
-    }
-  };
+  const getStatusColor = useMemo(
+    () => (status: TrainingStatus) => {
+      switch (status) {
+        case "APPROVED":
+          return "text-green-600";
+        case "REJECTED":
+          return "text-red-600";
+        case "COMPLETED":
+          return "text-blue-600";
+        default:
+          return "text-yellow-600";
+      }
+    },
+    []
+  );
 
   return {
     trainings: filteredTrainings,

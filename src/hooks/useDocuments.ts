@@ -1,5 +1,6 @@
 import { Document, DocumentType, SOP } from "@prisma/client";
 import { useResourceList } from "./useResourceList";
+import { useMemo, useCallback } from "react";
 
 interface DocumentFilters {
   type: DocumentType | "ALL";
@@ -27,35 +28,126 @@ interface UseDocumentsOptions {
 }
 
 export function useDocuments({ siteId, sops }: UseDocumentsOptions) {
-  const baseUrl = siteId ? `/api/sites/${siteId}/documents` : "/api/documents";
+  const baseUrl = useMemo(
+    () => (siteId ? `/api/sites/${siteId}/documents` : "/api/documents"),
+    [siteId]
+  );
 
-  const filterConfig = {
-    type: {
-      predicate: (doc: DocumentWithRelations, value: DocumentType | "ALL") =>
-        value === "ALL" || doc.type === value,
-    },
-    sop: {
-      predicate: (
-        doc: DocumentWithRelations,
-        value: string | "ALL" | "NONE"
-      ) => {
-        if (value === "ALL") return true;
-        if (value === "NONE") return !doc.sop;
-        return doc.sop?.id === value;
+  const filterConfig = useMemo(
+    () => ({
+      type: {
+        predicate: (doc: DocumentWithRelations, value: DocumentType | "ALL") =>
+          value === "ALL" || doc.type === value,
       },
-    },
-    metadata: {
-      predicate: (
-        doc: DocumentWithRelations,
-        value: "ALL" | "WITH" | "WITHOUT"
-      ) => {
-        if (value === "ALL") return true;
-        const hasMetadata =
-          doc.metadata && Object.keys(doc.metadata).length > 0;
-        return value === "WITH" ? hasMetadata : !hasMetadata;
+      sop: {
+        predicate: (
+          doc: DocumentWithRelations,
+          value: string | "ALL" | "NONE"
+        ) => {
+          if (value === "ALL") return true;
+          if (value === "NONE") return !doc.sop;
+          return doc.sop?.id === value;
+        },
       },
-    },
-  };
+      metadata: {
+        predicate: (
+          doc: DocumentWithRelations,
+          value: "ALL" | "WITH" | "WITHOUT"
+        ) => {
+          if (value === "ALL") return true;
+          const hasMetadata =
+            doc.metadata && Object.keys(doc.metadata).length > 0;
+          return value === "WITH" ? hasMetadata : !hasMetadata;
+        },
+      },
+    }),
+    []
+  );
+
+  const resourceOptions = useMemo(
+    () => ({
+      fetchUrl: baseUrl,
+      filterOptions: [
+        {
+          key: "type" as keyof DocumentFilters,
+          value: "ALL",
+          predicate: filterConfig.type.predicate,
+        },
+        {
+          key: "sop" as keyof DocumentFilters,
+          value: "ALL",
+          predicate: filterConfig.sop.predicate,
+        },
+        {
+          key: "metadata" as keyof DocumentFilters,
+          value: "ALL",
+          predicate: filterConfig.metadata.predicate,
+        },
+      ],
+      sortOptions: [
+        {
+          key: "date",
+          getValue: (doc: DocumentWithRelations) => new Date(doc.createdAt),
+        },
+        {
+          key: "name",
+          getValue: (doc: DocumentWithRelations) => doc.name,
+        },
+        {
+          key: "uploader",
+          getValue: (doc: DocumentWithRelations) => doc.uploadedBy.name,
+        },
+      ],
+      onCreateResource: async (data: any) => {
+        const formData = new FormData();
+        formData.append("content", data.content);
+        formData.append("name", data.name);
+        formData.append("type", data.type);
+        formData.append("metadata", JSON.stringify(data.metadata || {}));
+        if (data.sopId) formData.append("sopId", data.sopId);
+
+        const response = await fetch(baseUrl, {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.message || "Failed to create document");
+        }
+      },
+      onUpdateResource: async (data: any) => {
+        const formData = new FormData();
+        formData.append("id", data.id);
+        if (data.content) formData.append("content", data.content);
+        formData.append("name", data.name);
+        formData.append("type", data.type);
+        formData.append("metadata", JSON.stringify(data.metadata || {}));
+        if (data.sopId) formData.append("sopId", data.sopId);
+
+        const response = await fetch(baseUrl, {
+          method: "PUT",
+          body: formData,
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.message || "Failed to update document");
+        }
+      },
+      onDeleteResource: async (id: string) => {
+        const response = await fetch(`${baseUrl}?id=${id}`, {
+          method: "DELETE",
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.message || "Failed to delete document");
+        }
+      },
+    }),
+    [baseUrl, filterConfig]
+  );
 
   const {
     resources: documents,
@@ -74,111 +166,31 @@ export function useDocuments({ siteId, sops }: UseDocumentsOptions) {
     handleCreateResource: handleCreate,
     handleUpdateResource: handleUpdate,
     handleDeleteResource: handleDelete,
-  } = useResourceList<DocumentWithRelations, DocumentFilters>({
-    fetchUrl: baseUrl,
-    filterOptions: [
-      {
-        key: "type",
-        value: "ALL",
-        predicate: filterConfig.type.predicate,
-      },
-      {
-        key: "sop",
-        value: "ALL",
-        predicate: filterConfig.sop.predicate,
-      },
-      {
-        key: "metadata",
-        value: "ALL",
-        predicate: filterConfig.metadata.predicate,
-      },
-    ],
-    sortOptions: [
-      {
-        key: "date",
-        getValue: (doc) => new Date(doc.createdAt),
-      },
-      {
-        key: "name",
-        getValue: (doc) => doc.name,
-      },
-      {
-        key: "uploader",
-        getValue: (doc) => doc.uploadedBy.name,
-      },
-    ],
-    onCreateResource: async (data) => {
-      const formData = new FormData();
-      formData.append("content", data.content);
-      formData.append("name", data.name);
-      formData.append("type", data.type);
-      formData.append("metadata", JSON.stringify(data.metadata || {}));
-      if (data.sopId) formData.append("sopId", data.sopId);
+  } = useResourceList<DocumentWithRelations, DocumentFilters>(resourceOptions);
 
-      const response = await fetch(baseUrl, {
-        method: "POST",
-        body: formData,
-      });
+  const handleDownloadDocument = useCallback(
+    async (documentId: string, fileName: string) => {
+      try {
+        const response = await fetch(`/api/documents/${documentId}/download`);
+        if (!response.ok) {
+          throw new Error("Failed to download document");
+        }
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Failed to create document");
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      } catch (error: any) {
+        alert(error.message);
       }
     },
-    onUpdateResource: async (data) => {
-      const formData = new FormData();
-      formData.append("id", data.id);
-      if (data.content) formData.append("content", data.content);
-      formData.append("name", data.name);
-      formData.append("type", data.type);
-      formData.append("metadata", JSON.stringify(data.metadata || {}));
-      if (data.sopId) formData.append("sopId", data.sopId);
-
-      const response = await fetch(baseUrl, {
-        method: "PUT",
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Failed to update document");
-      }
-    },
-    onDeleteResource: async (id) => {
-      const response = await fetch(`${baseUrl}?id=${id}`, {
-        method: "DELETE",
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Failed to delete document");
-      }
-    },
-  });
-
-  const handleDownloadDocument = async (
-    documentId: string,
-    fileName: string
-  ) => {
-    try {
-      const response = await fetch(`/api/documents/${documentId}/download`);
-      if (!response.ok) {
-        throw new Error("Failed to download document");
-      }
-
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = fileName;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-    } catch (error: any) {
-      alert(error.message);
-    }
-  };
+    []
+  );
 
   return {
     documents,

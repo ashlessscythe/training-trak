@@ -11,6 +11,9 @@ import {
 } from "@/components/ui/select";
 import { useTraining } from "@/hooks/useTraining";
 import { useEffect } from "react";
+import { ListView } from "@/components/list-view";
+import { ViewModeToggle } from "@/components/view-mode-toggle";
+import { useListView } from "@/hooks/useListView";
 
 interface TrainingListProps {
   siteId?: string;
@@ -39,6 +42,8 @@ export function TrainingList({
     getStatusColor,
   } = useTraining({ siteId });
 
+  const { viewMode, setViewMode, currentView } = useListView();
+
   useEffect(() => {
     fetchTrainings();
   }, [fetchTrainings]);
@@ -51,10 +56,118 @@ export function TrainingList({
     );
   }
 
+  const columns = [
+    {
+      header: "SOP",
+      accessor: (training: any) => (
+        <div>
+          <div className="font-medium">{training.sop.name}</div>
+          <div className="text-sm text-muted-foreground">
+            v{training.sop.version}
+          </div>
+        </div>
+      ),
+    },
+    {
+      header: "Trainee",
+      accessor: (training: any) => training.user.name,
+    },
+    {
+      header: "Status",
+      accessor: (training: any) => (
+        <span className={`font-medium ${getStatusColor(training.status)}`}>
+          {training.status.replace("_", " ")}
+        </span>
+      ),
+      className: "w-32",
+    },
+    {
+      header: "Completion",
+      accessor: (training: any) => (
+        <div>
+          {training.completedAt && (
+            <div>
+              <div>Completed on:</div>
+              <div className="text-sm text-muted-foreground">
+                {new Date(training.completedAt).toLocaleDateString()}
+              </div>
+            </div>
+          )}
+          {training.approvedBy && (
+            <div className="mt-1 text-sm text-muted-foreground">
+              Approved by {training.approvedBy.name}
+            </div>
+          )}
+        </div>
+      ),
+      className: "w-48",
+    },
+    {
+      header: "Actions",
+      accessor: (training: any) => (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            setSelectedTraining(training);
+            setIsDialogOpen(true);
+          }}
+        >
+          Update Status
+        </Button>
+      ),
+      className: "w-32",
+    },
+  ];
+
+  const renderCard = (training: any) => (
+    <Card key={training.id} className="p-4">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-lg font-semibold">
+          {training.sop.name} v{training.sop.version}
+        </h3>
+        <div className="flex items-center gap-4">
+          <span className={`font-medium ${getStatusColor(training.status)}`}>
+            {training.status.replace("_", " ")}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setSelectedTraining(training);
+              setIsDialogOpen(true);
+            }}
+          >
+            Update Status
+          </Button>
+        </div>
+      </div>
+      <div className="space-y-2 text-sm text-muted-foreground">
+        <p>Trainee: {training.user.name}</p>
+        {training.completedAt && (
+          <p>
+            Completed: {new Date(training.completedAt).toLocaleDateString()}
+          </p>
+        )}
+        {training.approvedBy && (
+          <p>
+            Approved by: {training.approvedBy.name} on{" "}
+            {new Date(training.approvedAt!).toLocaleDateString()}
+          </p>
+        )}
+        {training.notes && <p>Notes: {training.notes}</p>}
+      </div>
+    </Card>
+  );
+
   return (
     <div className="container mx-auto py-6">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">{title}</h1>
+        <ViewModeToggle viewMode={viewMode} onChange={setViewMode} />
+      </div>
+
+      <div className="flex justify-between items-center mb-4">
         <div className="flex gap-4">
           <Select
             value={filters.status || "ALL"}
@@ -102,55 +215,14 @@ export function TrainingList({
         </div>
       </div>
 
-      <div className="grid gap-4">
-        {trainings.map((training) => (
-          <Card key={training.id} className="p-4">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold">
-                {training.sop.name} v{training.sop.version}
-              </h3>
-              <div className="flex items-center gap-4">
-                <span
-                  className={`font-medium ${getStatusColor(training.status)}`}
-                >
-                  {training.status.replace("_", " ")}
-                </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setSelectedTraining(training);
-                    setIsDialogOpen(true);
-                  }}
-                >
-                  Update Status
-                </Button>
-              </div>
-            </div>
-            <div className="space-y-2 text-sm text-muted-foreground">
-              <p>Trainee: {training.user.name}</p>
-              {training.completedAt && (
-                <p>
-                  Completed:{" "}
-                  {new Date(training.completedAt).toLocaleDateString()}
-                </p>
-              )}
-              {training.approvedBy && (
-                <p>
-                  Approved by: {training.approvedBy.name} on{" "}
-                  {new Date(training.approvedAt!).toLocaleDateString()}
-                </p>
-              )}
-              {training.notes && <p>Notes: {training.notes}</p>}
-            </div>
-          </Card>
-        ))}
-        {trainings.length === 0 && (
-          <p className="text-muted-foreground text-center py-8">
-            No training records found.
-          </p>
-        )}
-      </div>
+      <ListView
+        data={trainings}
+        columns={columns}
+        view={currentView}
+        renderCard={renderCard}
+        keyExtractor={(training) => training.id}
+        emptyMessage="No training records found."
+      />
 
       <TrainingDialog
         isOpen={isDialogOpen}

@@ -11,6 +11,9 @@ import {
 } from "@/components/ui/select";
 import { useDocuments } from "@/hooks/useDocuments";
 import { useEffect } from "react";
+import { ListView } from "@/components/list-view";
+import { ViewModeToggle } from "@/components/view-mode-toggle";
+import { useListView } from "@/hooks/useListView";
 
 interface DocumentsListProps {
   siteId?: string;
@@ -50,6 +53,8 @@ export function DocumentsList({
     handleDownloadDocument,
   } = useDocuments({ siteId, sops });
 
+  const { viewMode, setViewMode, currentView } = useListView();
+
   useEffect(() => {
     fetchDocuments();
   }, [fetchDocuments]);
@@ -62,11 +67,211 @@ export function DocumentsList({
     );
   }
 
+  const columns = [
+    {
+      header: "Name",
+      accessor: (document: any) => (
+        <div>
+          <div className="font-medium">{document.name}</div>
+          <div className="text-sm text-muted-foreground">
+            {formatDocumentType(document.type)}
+          </div>
+        </div>
+      ),
+    },
+    {
+      header: "Related SOP",
+      accessor: (document: any) =>
+        document.sop ? (
+          <div>
+            <div>{document.sop.name}</div>
+            <div className="text-sm text-muted-foreground">
+              v{document.sop.version}
+            </div>
+          </div>
+        ) : (
+          <span className="text-muted-foreground">No SOP associated</span>
+        ),
+      className: "w-48",
+    },
+    {
+      header: "Upload Info",
+      accessor: (document: any) => (
+        <div>
+          <div>{document.uploadedBy.name}</div>
+          <div className="text-sm text-muted-foreground">
+            {new Date(document.createdAt).toLocaleDateString()}
+          </div>
+        </div>
+      ),
+      className: "w-48",
+    },
+    {
+      header: "Actions",
+      accessor: (document: any) => (
+        <div className="flex items-center space-x-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handleDownloadDocument(document.id, document.name)}
+          >
+            Download
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setSelectedDocument(document);
+              setIsDialogOpen(true);
+            }}
+          >
+            Edit
+          </Button>
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={() => handleDelete(document.id)}
+          >
+            Delete
+          </Button>
+        </div>
+      ),
+      className: "w-64",
+    },
+  ];
+
+  const renderCard = (document: any) => (
+    <Card key={document.id}>
+      <CardHeader>
+        <div className="flex justify-between items-start">
+          <div>
+            <CardTitle>{document.name}</CardTitle>
+            <p className="text-sm text-muted-foreground mt-1">
+              {formatDocumentType(document.type)}
+            </p>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleDownloadDocument(document.id, document.name)}
+            >
+              Download
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setSelectedDocument(document);
+                setIsDialogOpen(true);
+              }}
+            >
+              Edit
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => handleDelete(document.id)}
+            >
+              Delete
+            </Button>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="grid gap-4 md:grid-cols-3">
+          <div>
+            <h3 className="font-semibold mb-2">Details</h3>
+            <dl className="space-y-1 text-sm">
+              <div>
+                <dt className="inline text-muted-foreground">Uploaded by:</dt>
+                <dd className="inline ml-1">{document.uploadedBy.name}</dd>
+              </div>
+              <div>
+                <dt className="inline text-muted-foreground">Upload date:</dt>
+                <dd className="inline ml-1">
+                  {new Date(document.createdAt).toLocaleDateString()}
+                </dd>
+              </div>
+            </dl>
+          </div>
+
+          <div>
+            <h3 className="font-semibold mb-2">Related SOP</h3>
+            {document.sop ? (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">
+                    {document.sop.name}
+                  </span>
+                  <span className="text-sm text-muted-foreground">
+                    v{document.sop.version}
+                  </span>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full"
+                    onClick={() => {
+                      setSelectedDocument(document);
+                      setIsDialogOpen(true);
+                    }}
+                  >
+                    Change SOP
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">
+                  No SOP associated
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full"
+                  onClick={() => {
+                    setSelectedDocument(document);
+                    setIsDialogOpen(true);
+                  }}
+                >
+                  Link to SOP
+                </Button>
+              </div>
+            )}
+          </div>
+
+          <div>
+            <h3 className="font-semibold mb-2">Metadata</h3>
+            {document.metadata && Object.keys(document.metadata).length > 0 ? (
+              <dl className="space-y-1 text-sm">
+                {Object.entries(document.metadata).map(([key, value]) => (
+                  <div key={key}>
+                    <dt className="inline text-muted-foreground">{key}:</dt>
+                    <dd className="inline ml-1">{String(value)}</dd>
+                  </div>
+                ))}
+              </dl>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                No metadata available
+              </p>
+            )}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+
   return (
     <div className="container mx-auto py-6">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">{title}</h1>
-        <Button onClick={() => setIsDialogOpen(true)}>Upload Document</Button>
+        <div className="flex items-center space-x-4">
+          <ViewModeToggle viewMode={viewMode} onChange={setViewMode} />
+          <Button onClick={() => setIsDialogOpen(true)}>Upload Document</Button>
+        </div>
       </div>
 
       <div className="flex justify-between items-center mb-4">
@@ -149,147 +354,14 @@ export function DocumentsList({
         </div>
       </div>
 
-      <div className="grid gap-4">
-        {documents.map((document) => (
-          <Card key={document.id}>
-            <CardHeader>
-              <div className="flex justify-between items-start">
-                <div>
-                  <CardTitle>{document.name}</CardTitle>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {formatDocumentType(document.type)}
-                  </p>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() =>
-                      handleDownloadDocument(document.id, document.name)
-                    }
-                  >
-                    Download
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setSelectedDocument(document);
-                      setIsDialogOpen(true);
-                    }}
-                  >
-                    Edit
-                  </Button>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => handleDelete(document.id)}
-                  >
-                    Delete
-                  </Button>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-4 md:grid-cols-3">
-                <div>
-                  <h3 className="font-semibold mb-2">Details</h3>
-                  <dl className="space-y-1 text-sm">
-                    <div>
-                      <dt className="inline text-muted-foreground">
-                        Uploaded by:
-                      </dt>
-                      <dd className="inline ml-1">
-                        {document.uploadedBy.name}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className="inline text-muted-foreground">
-                        Upload date:
-                      </dt>
-                      <dd className="inline ml-1">
-                        {new Date(document.createdAt).toLocaleDateString()}
-                      </dd>
-                    </div>
-                  </dl>
-                </div>
-
-                <div>
-                  <h3 className="font-semibold mb-2">Related SOP</h3>
-                  {document.sop ? (
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium">
-                          {document.sop.name}
-                        </span>
-                        <span className="text-sm text-muted-foreground">
-                          v{document.sop.version}
-                        </span>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="w-full"
-                          onClick={() => {
-                            setSelectedDocument(document);
-                            setIsDialogOpen(true);
-                          }}
-                        >
-                          Change SOP
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      <p className="text-sm text-muted-foreground">
-                        No SOP associated
-                      </p>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="w-full"
-                        onClick={() => {
-                          setSelectedDocument(document);
-                          setIsDialogOpen(true);
-                        }}
-                      >
-                        Link to SOP
-                      </Button>
-                    </div>
-                  )}
-                </div>
-
-                <div>
-                  <h3 className="font-semibold mb-2">Metadata</h3>
-                  {document.metadata &&
-                  Object.keys(document.metadata).length > 0 ? (
-                    <dl className="space-y-1 text-sm">
-                      {Object.entries(document.metadata).map(([key, value]) => (
-                        <div key={key}>
-                          <dt className="inline text-muted-foreground">
-                            {key}:
-                          </dt>
-                          <dd className="inline ml-1">{String(value)}</dd>
-                        </div>
-                      ))}
-                    </dl>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">
-                      No metadata available
-                    </p>
-                  )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-        {documents.length === 0 && (
-          <p className="text-muted-foreground text-center py-8">
-            No documents found.
-          </p>
-        )}
-      </div>
+      <ListView
+        data={documents}
+        columns={columns}
+        view={currentView}
+        renderCard={renderCard}
+        keyExtractor={(document) => document.id}
+        emptyMessage="No documents found."
+      />
 
       <DocumentDialog
         isOpen={isDialogOpen}
