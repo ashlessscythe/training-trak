@@ -12,14 +12,16 @@ datasource db {
 
 // Site model for multi-site scalability
 model Site {
-  id          String   @id @default(cuid())
-  code        String   @unique // Site specific code
+  id          String       @id @default(cuid())
+  code        String       @unique // Site specific code
   name        String
   description String?
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  isActive    Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
   users       User[]
+  departments Department[]
+  positions   Position[]
 
   @@index([code])
 }
@@ -27,27 +29,35 @@ model Site {
 // Department model
 model Department {
   id          String    @id @default(cuid())
-  name        String    @unique
+  name        String
   description String?
   isActive    Boolean   @default(true)
+  site        Site      @relation(fields: [siteId], references: [id])
+  siteId      String
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   users       User[]
 
+  @@unique([name, siteId])
   @@index([name])
+  @@index([siteId])
 }
 
 // Position model
 model Position {
   id          String    @id @default(cuid())
-  name        String    @unique
+  name        String
   description String?
   isActive    Boolean   @default(true)
+  site        Site      @relation(fields: [siteId], references: [id])
+  siteId      String
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   users       User[]
 
+  @@unique([name, siteId])
   @@index([name])
+  @@index([siteId])
 }
 
 // User model with role-based access

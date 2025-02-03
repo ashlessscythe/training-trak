@@ -69,71 +69,7 @@ async function main() {
     await prisma.site.deleteMany();
   }
 
-  // Create default department
-  const defaultDepartment = await prisma.department.create({
-    data: {
-      name: "DEFAULT_DEPT",
-      description: "Default department for new users",
-      isActive: true,
-    },
-  });
-
-  // Create other departments
-  const departments = [defaultDepartment];
-  const departmentNames = [
-    "Operations",
-    "Warehouse",
-    "Quality Control",
-    "Shipping",
-  ];
-
-  for (const name of departmentNames) {
-    const department = await prisma.department.create({
-      data: {
-        name,
-        description: useFaker
-          ? faker.company.catchPhrase()
-          : `${name} department`,
-        isActive: true,
-      },
-    });
-    departments.push(department);
-  }
-
-  // Create default position
-  const defaultPosition = await prisma.position.create({
-    data: {
-      name: "DEFAULT_POSITION",
-      description: "Default position for new users",
-      isActive: true,
-    },
-  });
-
-  // Create other positions
-  const positions = [defaultPosition];
-  const positionNames = [
-    "Clerk",
-    "Supervisor",
-    "Loader",
-    "Inspector",
-    "Operator",
-    "Team Lead",
-  ];
-
-  for (const name of positionNames) {
-    const position = await prisma.position.create({
-      data: {
-        name,
-        description: useFaker
-          ? faker.company.catchPhrase()
-          : `${name} position`,
-        isActive: true,
-      },
-    });
-    positions.push(position);
-  }
-
-  // Create sites
+  // Create sites first
   const sites = await Promise.all(
     Array.from({ length: count }, async (_, index) => {
       return prisma.site.create({
@@ -156,6 +92,101 @@ async function main() {
       });
     })
   );
+
+  // Create departments and positions for each site
+  const departments: Department[] = [];
+  const positions: Position[] = [];
+
+  // Default department and position for the default site
+  const defaultDepartment = await prisma.department.create({
+    data: {
+      name: "DEFAULT_DEPT",
+      description: "Default department for new users",
+      isActive: true,
+      site: {
+        connect: { id: sites[0].id },
+      },
+    },
+  });
+  departments.push(defaultDepartment);
+
+  const defaultPosition = await prisma.position.create({
+    data: {
+      name: "DEFAULT_POSITION",
+      description: "Default position for new users",
+      isActive: true,
+      site: {
+        connect: { id: sites[0].id },
+      },
+    },
+  });
+  positions.push(defaultPosition);
+
+  // Department categories to generate more realistic department names
+  const departmentCategories = [
+    ["Manufacturing", "Production", "Assembly", "Fabrication"],
+    ["Quality Control", "Quality Assurance", "Inspection", "Testing"],
+    ["Logistics", "Shipping", "Receiving", "Warehouse"],
+    ["Maintenance", "Facilities", "Engineering", "Technical Support"],
+    ["Operations", "Process Control", "Planning", "Scheduling"],
+    ["Safety", "Environmental", "Compliance", "Training"],
+  ];
+
+  // Position categories to generate more realistic position names
+  const positionCategories = [
+    ["Manager", "Supervisor", "Lead", "Coordinator"],
+    ["Technician", "Specialist", "Operator", "Analyst"],
+    ["Engineer", "Designer", "Developer", "Planner"],
+    ["Inspector", "Auditor", "Tester", "Examiner"],
+    ["Assistant", "Associate", "Helper", "Support"],
+  ];
+
+  // Create varied departments and positions for each site
+  for (const site of sites) {
+    // Generate 3-6 random departments for each site
+    const numDepartments = faker.number.int({ min: 3, max: 6 });
+    const siteCategories = faker.helpers.arrayElements(
+      departmentCategories,
+      numDepartments
+    );
+
+    for (const category of siteCategories) {
+      const deptName = faker.helpers.arrayElement(category);
+      const department = await prisma.department.create({
+        data: {
+          name: `${deptName} ${faker.number.int({ min: 1, max: 3 })}`,
+          description: faker.company.catchPhrase(),
+          isActive: faker.helpers.arrayElement([true, true, true, false]), // 75% chance of being active
+          site: {
+            connect: { id: site.id },
+          },
+        },
+      });
+      departments.push(department);
+
+      // Create 2-4 positions for each department
+      const numPositions = faker.number.int({ min: 2, max: 4 });
+      const positionTypes = faker.helpers.arrayElements(
+        positionCategories,
+        numPositions
+      );
+
+      for (const type of positionTypes) {
+        const posName = faker.helpers.arrayElement(type);
+        const position = await prisma.position.create({
+          data: {
+            name: `${deptName} ${posName}`,
+            description: faker.company.catchPhrase(),
+            isActive: faker.helpers.arrayElement([true, true, true, false]), // 75% chance of being active
+            site: {
+              connect: { id: site.id },
+            },
+          },
+        });
+        positions.push(position);
+      }
+    }
+  }
 
   // Create users for each site with different roles
   const users: Array<{

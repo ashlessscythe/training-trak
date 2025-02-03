@@ -30,6 +30,20 @@ const baseNavigation = [
     siteRoles: ["SITE_ADMIN", "SUPERVISOR", "USER"],
   },
   { name: "Admin", href: "/admin", roles: ["OWNER", "ADMIN"] },
+  {
+    name: "Departments",
+    href: "/admin/departments",
+    roles: ["OWNER", "ADMIN"],
+    siteHref: (siteId: string) => `/sites/${siteId}/departments`,
+    siteRoles: ["SITE_ADMIN"],
+  },
+  {
+    name: "Positions",
+    href: "/admin/positions",
+    roles: ["OWNER", "ADMIN"],
+    siteHref: (siteId: string) => `/sites/${siteId}/positions`,
+    siteRoles: ["SITE_ADMIN"],
+  },
 ];
 
 export function Nav() {

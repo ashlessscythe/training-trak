@@ -18,8 +18,8 @@ export default function SiteUsersPage() {
       try {
         const [siteRes, departmentsRes, positionsRes] = await Promise.all([
           fetch(`/api/sites/${siteId}`).then((res) => res.json()),
-          fetch("/api/departments").then((res) => res.json()),
-          fetch("/api/positions").then((res) => res.json()),
+          fetch(`/api/sites/${siteId}/departments`).then((res) => res.json()),
+          fetch(`/api/sites/${siteId}/positions`).then((res) => res.json()),
         ]);
 
         setSite(siteRes);
