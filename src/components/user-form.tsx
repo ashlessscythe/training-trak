@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Role, Site, Department, Position } from "@prisma/client";
 
@@ -135,9 +135,15 @@ export function UserForm({
         <select
           required
           value={formData.siteId}
-          onChange={(e) =>
-            setFormData((prev) => ({ ...prev, siteId: e.target.value }))
-          }
+          onChange={(e) => {
+            const newSiteId = e.target.value;
+            setFormData((prev) => ({
+              ...prev,
+              siteId: newSiteId,
+              departmentId: "",
+              positionId: "",
+            }));
+          }}
           className="w-full p-2 border rounded-md"
         >
           <option value="">Select a site</option>
@@ -160,11 +166,13 @@ export function UserForm({
           className="w-full p-2 border rounded-md"
         >
           <option value="">Select a department</option>
-          {departments.map((department) => (
-            <option key={department.id} value={department.id}>
-              {department.name}
-            </option>
-          ))}
+          {departments
+            .filter((dept) => dept.siteId === formData.siteId)
+            .map((department) => (
+              <option key={department.id} value={department.id}>
+                {department.name}
+              </option>
+            ))}
         </select>
       </div>
 
@@ -179,11 +187,13 @@ export function UserForm({
           className="w-full p-2 border rounded-md"
         >
           <option value="">Select a position</option>
-          {positions.map((position) => (
-            <option key={position.id} value={position.id}>
-              {position.name}
-            </option>
-          ))}
+          {positions
+            .filter((pos) => pos.siteId === formData.siteId)
+            .map((position) => (
+              <option key={position.id} value={position.id}>
+                {position.name}
+              </option>
+            ))}
         </select>
       </div>
 
