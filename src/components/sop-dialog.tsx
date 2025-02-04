@@ -6,14 +6,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { SOP } from "@prisma/client";
+import { Position, SOP } from "@prisma/client";
+import { useParams } from "next/navigation";
+import { useAvailablePositions } from "@/hooks/useAvailablePositions";
 import { SOPForm } from "./sop-form";
 
 interface SOPDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (data: any) => Promise<void>;
-  sop?: SOP;
+  sop?: SOP & { positions?: Position[] };
   title: string;
 }
 
@@ -24,6 +26,9 @@ export function SOPDialog({
   sop,
   title,
 }: SOPDialogProps) {
+  const params = useParams();
+  const siteId = params.id as string;
+  const { positions, isLoading } = useAvailablePositions(siteId);
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent>
@@ -41,10 +46,12 @@ export function SOPDialog({
                   version: sop.version,
                   content: sop.content || undefined,
                   requiredRoles: sop.requiredRoles,
+                  positions: sop.positions || [],
                   isActive: sop.isActive,
                 }
               : undefined
           }
+          availablePositions={positions}
           onCancel={onClose}
         />
       </DialogContent>

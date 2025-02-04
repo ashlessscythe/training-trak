@@ -3,7 +3,11 @@
 import { useEffect, useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Position } from "@prisma/client";
+import { Position, SOP } from "@prisma/client";
+
+interface PositionWithSOPs extends Position {
+  sops?: SOP[];
+}
 import { PositionDialog } from "@/components/position-dialog";
 import { Input } from "@/components/ui/input";
 import {
@@ -18,11 +22,11 @@ import { useParams } from "next/navigation";
 export default function PositionsPage() {
   const params = useParams();
   const siteId = params.id as string;
-  const [positions, setPositions] = useState<Position[]>([]);
+  const [positions, setPositions] = useState<PositionWithSOPs[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedPosition, setSelectedPosition] = useState<
-    Position | undefined
+    PositionWithSOPs | undefined
   >();
   const [nameFilter, setNameFilter] = useState<string>("");
   const [sortBy, setSortBy] = useState<"name" | "createdAt">("name");
@@ -239,6 +243,17 @@ export default function PositionsPage() {
                   <p className="text-sm text-muted-foreground">
                     {position.description || "No description provided"}
                   </p>
+                  <div>
+                    <p className="text-sm font-medium">Required SOPs:</p>
+                    <p className="text-sm text-muted-foreground">
+                      {(position.sops || []).length > 0
+                        ? (position.sops || [])
+                            .filter((sop) => sop.isActive)
+                            .map((sop) => `${sop.name} (v${sop.version})`)
+                            .join(", ")
+                        : "No SOPs required"}
+                    </p>
+                  </div>
                   <p className="text-sm text-muted-foreground">
                     Created: {new Date(position.createdAt).toLocaleDateString()}
                   </p>

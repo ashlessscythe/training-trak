@@ -54,6 +54,7 @@ model Position {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   users       User[]
+  sops        SOP[]     @relation("PositionSOPs")
 
   @@unique([name, siteId])
   @@index([name])
@@ -107,6 +108,7 @@ model SOP {
   documents        Document[]
   trainings        TrainingProgress[]
   requiredRoles    Role[]
+  positions        Position[]         @relation("PositionSOPs")
 
   @@unique([name, version]) // Unique constraint for name and version combination
   @@index([name])

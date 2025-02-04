@@ -24,6 +24,15 @@ export async function GET(
       },
       include: {
         site: true,
+        sops: {
+          select: {
+            id: true,
+            name: true,
+            version: true,
+            description: true,
+            isActive: true,
+          },
+        },
       },
     });
 
@@ -54,9 +63,22 @@ export async function POST(
         site: {
           connect: { id: params.id },
         },
+        sops: data.sopIds?.length
+          ? {
+              connect: data.sopIds.map((id: string) => ({ id })),
+            }
+          : undefined,
       },
       include: {
         site: true,
+        sops: {
+          select: {
+            id: true,
+            name: true,
+            version: true,
+            isActive: true,
+          },
+        },
       },
     });
 
@@ -95,9 +117,20 @@ export async function PUT(
         name: data.name,
         description: data.description,
         isActive: data.isActive,
+        sops: {
+          set: data.sopIds?.map((id: string) => ({ id })) || [],
+        },
       },
       include: {
         site: true,
+        sops: {
+          select: {
+            id: true,
+            name: true,
+            version: true,
+            isActive: true,
+          },
+        },
       },
     });
 
@@ -139,6 +172,14 @@ export async function DELETE(
       },
       include: {
         site: true,
+        sops: {
+          select: {
+            id: true,
+            name: true,
+            version: true,
+            isActive: true,
+          },
+        },
       },
     });
 

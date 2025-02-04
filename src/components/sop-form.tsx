@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Role, SOP } from "@prisma/client";
+import { Position, Role, SOP } from "@prisma/client";
 
 interface SOPFormProps {
   onSubmit: (data: {
@@ -11,6 +11,7 @@ interface SOPFormProps {
     version: string;
     content?: string;
     requiredRoles: Role[];
+    positionIds: string[];
     isActive?: boolean;
     id?: string;
   }) => Promise<void>;
@@ -21,18 +22,26 @@ interface SOPFormProps {
     version: string;
     content?: string;
     requiredRoles: Role[];
+    positions?: Position[];
     isActive: boolean;
   };
   onCancel: () => void;
+  availablePositions?: Position[];
 }
 
-export function SOPForm({ onSubmit, initialData, onCancel }: SOPFormProps) {
+export function SOPForm({
+  onSubmit,
+  initialData,
+  onCancel,
+  availablePositions = [],
+}: SOPFormProps) {
   const [formData, setFormData] = useState({
     name: initialData?.name || "",
     description: initialData?.description || "",
     version: initialData?.version || "",
     content: initialData?.content || "",
     requiredRoles: initialData?.requiredRoles || [],
+    positionIds: initialData?.positions?.map((p) => p.id) || [],
     isActive: initialData?.isActive ?? true,
   });
 
@@ -129,6 +138,32 @@ export function SOPForm({ onSubmit, initialData, onCancel }: SOPFormProps) {
                   .map((word) => word.charAt(0) + word.slice(1).toLowerCase())
                   .join(" ")}
               </span>
+            </label>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium mb-2">
+          Required Positions
+        </label>
+        <div className="space-y-2 max-h-48 overflow-y-auto border rounded-md p-2">
+          {availablePositions.map((position) => (
+            <label key={position.id} className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                checked={formData.positionIds.includes(position.id)}
+                onChange={(e) => {
+                  setFormData((prev) => ({
+                    ...prev,
+                    positionIds: e.target.checked
+                      ? [...prev.positionIds, position.id]
+                      : prev.positionIds.filter((id) => id !== position.id),
+                  }));
+                }}
+                className="rounded border-gray-300"
+              />
+              <span className="text-sm">{position.name}</span>
             </label>
           ))}
         </div>

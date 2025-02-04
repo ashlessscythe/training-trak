@@ -90,6 +90,16 @@ export function SOPsList({
       accessor: (sop: any) => sop.requiredRoles.map(formatRole).join(", "),
     },
     {
+      header: "Required For",
+      accessor: (sop: any) =>
+        sop.positions?.length > 0
+          ? sop.positions
+              .filter((pos: any) => pos.isActive)
+              .map((pos: any) => pos.name)
+              .join(", ")
+          : "No positions",
+    },
+    {
       header: "Last Modified",
       accessor: (sop: any) => (
         <div>
@@ -210,6 +220,19 @@ export function SOPsList({
                   </dd>
                 </div>
               )}
+              <div>
+                <dt className="inline text-muted-foreground">
+                  Required for positions:
+                </dt>
+                <dd className="inline ml-1">
+                  {sop.positions?.length > 0
+                    ? sop.positions
+                        .filter((pos: any) => pos.isActive)
+                        .map((pos: any) => pos.name)
+                        .join(", ")
+                    : "No positions"}
+                </dd>
+              </div>
             </dl>
           </div>
           <div>

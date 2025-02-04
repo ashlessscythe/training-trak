@@ -5,13 +5,15 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { PositionForm } from "./position-form";
-import { Position } from "@prisma/client";
+import { Position, SOP } from "@prisma/client";
+import { useParams } from "next/navigation";
+import { useAvailableSOPs } from "@/hooks/useAvailableSOPs";
 
 interface PositionDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (data: any) => Promise<void>;
-  position?: Position;
+  position?: Position & { sops?: SOP[] };
   title: string;
 }
 
@@ -22,6 +24,9 @@ export function PositionDialog({
   position,
   title,
 }: PositionDialogProps) {
+  const params = useParams();
+  const siteId = params.id as string;
+  const { sops, isLoading } = useAvailableSOPs(siteId);
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent>
@@ -32,6 +37,7 @@ export function PositionDialog({
           onSubmit={onSubmit}
           position={position}
           onCancel={onClose}
+          availableSops={sops}
         />
       </DialogContent>
     </Dialog>

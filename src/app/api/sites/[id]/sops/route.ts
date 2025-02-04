@@ -97,6 +97,31 @@ export async function GET(
             },
           },
         },
+        positions: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            isActive: true,
+          },
+        },
+        documents: {
+          where: {
+            uploadedBy: {
+              site: {
+                id: siteId,
+              },
+            },
+          },
+          select: {
+            id: true,
+            name: true,
+            type: true,
+            metadata: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        },
       },
       orderBy: [
         {
@@ -133,7 +158,8 @@ export async function POST(
     const { currentUser } = access;
 
     const data = await req.json();
-    const { name, description, version, content, requiredRoles } = data;
+    const { name, description, version, content, requiredRoles, positionIds } =
+      data;
 
     // Validate required fields
     if (!name || !version) {
@@ -153,6 +179,11 @@ export async function POST(
         isActive: true,
         createdById: currentUser.id,
         lastModifiedById: currentUser.id,
+        positions: positionIds?.length
+          ? {
+              connect: positionIds.map((id: string) => ({ id })),
+            }
+          : undefined,
       },
       include: {
         createdBy: {
@@ -179,6 +210,30 @@ export async function POST(
                 code: true,
               },
             },
+          },
+        },
+        positions: {
+          select: {
+            id: true,
+            name: true,
+            isActive: true,
+          },
+        },
+        documents: {
+          where: {
+            uploadedBy: {
+              site: {
+                id: siteId,
+              },
+            },
+          },
+          select: {
+            id: true,
+            name: true,
+            type: true,
+            metadata: true,
+            createdAt: true,
+            updatedAt: true,
           },
         },
       },
@@ -215,8 +270,16 @@ export async function PUT(
     const { currentUser } = access;
 
     const data = await req.json();
-    const { id, name, description, version, content, requiredRoles, isActive } =
-      data;
+    const {
+      id,
+      name,
+      description,
+      version,
+      content,
+      requiredRoles,
+      positionIds,
+      isActive,
+    } = data;
 
     if (!id) {
       return NextResponse.json(
@@ -236,6 +299,13 @@ export async function PUT(
                 id: true,
               },
             },
+          },
+        },
+        positions: {
+          select: {
+            id: true,
+            name: true,
+            isActive: true,
           },
         },
       },
@@ -261,6 +331,9 @@ export async function PUT(
       requiredRoles,
       isActive,
       lastModifiedById: currentUser.id,
+      positions: {
+        set: positionIds?.map((id: string) => ({ id })) || [],
+      },
     };
 
     // Remove undefined values
@@ -296,6 +369,31 @@ export async function PUT(
                 code: true,
               },
             },
+          },
+        },
+        positions: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            isActive: true,
+          },
+        },
+        documents: {
+          where: {
+            uploadedBy: {
+              site: {
+                id: siteId,
+              },
+            },
+          },
+          select: {
+            id: true,
+            name: true,
+            type: true,
+            metadata: true,
+            createdAt: true,
+            updatedAt: true,
           },
         },
       },
@@ -372,6 +470,15 @@ export async function DELETE(
     const updatedSop = await prisma.sOP.update({
       where: { id },
       data: { isActive: false },
+      include: {
+        positions: {
+          select: {
+            id: true,
+            name: true,
+            isActive: true,
+          },
+        },
+      },
     });
 
     return NextResponse.json(updatedSop);

@@ -1,31 +1,28 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
-import { SOP } from "@prisma/client";
 import { DocumentsList } from "@/components/documents-list";
+import { useSiteSOPs } from "@/hooks/useSiteSOPs";
 
 export default function SiteDocumentsPage() {
   const params = useParams();
   const siteId = params.id as string;
-  const [sops, setSops] = useState<SOP[]>([]);
+  const { sops } = useSiteSOPs(siteId);
   const [siteName, setSiteName] = useState("");
 
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchSite = async () => {
       try {
-        const [sopsRes, siteRes] = await Promise.all([
-          fetch("/api/sops").then((res) => res.json()),
-          fetch(`/api/sites/${siteId}`).then((res) => res.json()),
-        ]);
-        setSops(sopsRes);
-        setSiteName(siteRes.name);
+        const response = await fetch(`/api/sites/${siteId}`);
+        const data = await response.json();
+        setSiteName(data.name);
       } catch (error) {
-        console.error("Failed to fetch data:", error);
+        console.error("Failed to fetch site:", error);
       }
     };
 
-    fetchData();
+    fetchSite();
   }, [siteId]);
 
   return (

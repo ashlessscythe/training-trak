@@ -17,7 +17,14 @@ type SOPWithRelations = SOP & {
     email?: string;
     siteId?: string;
   };
-  documents?: { url: string }[];
+  documents?: {
+    id: string;
+    name: string;
+    type: string;
+    metadata: any;
+    createdAt: Date;
+    updatedAt: Date;
+  }[];
 };
 
 interface UseSOPsOptions {
@@ -26,6 +33,21 @@ interface UseSOPsOptions {
 
 export function useSOPs({ siteId }: UseSOPsOptions) {
   const baseUrl = siteId ? `/api/sites/${siteId}/sops` : "/api/sops";
+
+  // Ensure we're only getting documents for this site
+  const includeDocuments = siteId
+    ? {
+        documents: {
+          where: {
+            uploadedBy: {
+              site: {
+                id: siteId,
+              },
+            },
+          },
+        },
+      }
+    : undefined;
 
   const filterConfig = {
     status: {
@@ -94,7 +116,7 @@ export function useSOPs({ siteId }: UseSOPsOptions) {
       const response = await fetch(baseUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify({ ...data, include: includeDocuments }),
       });
 
       if (!response.ok) {
@@ -106,7 +128,7 @@ export function useSOPs({ siteId }: UseSOPsOptions) {
       const response = await fetch(baseUrl, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify({ ...data, include: includeDocuments }),
       });
 
       if (!response.ok) {

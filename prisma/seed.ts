@@ -264,26 +264,72 @@ async function main() {
     }
   }
 
-  // Create SOPs
-  const sops = await Promise.all(
-    Array.from({ length: count }, async () => {
+  // Define interface for SOP with category
+  interface SOPWithCategory {
+    id: string;
+    name: string;
+    description: string | null;
+    version: string;
+    content: string | null;
+    isActive: boolean;
+    createdById: string;
+    lastModifiedById: string;
+    createdAt: Date;
+    updatedAt: Date;
+    category: string;
+  }
+
+  // Define SOP categories that align with department types
+  const sopCategories = {
+    Manufacturing: [
+      "Equipment Operation",
+      "Assembly Line",
+      "Quality Control",
+      "Material Handling",
+    ],
+    Quality: [
+      "Inspection Protocol",
+      "Testing Procedure",
+      "Quality Metrics",
+      "Defect Analysis",
+    ],
+    Logistics: [
+      "Shipping Protocol",
+      "Inventory Management",
+      "Warehouse Safety",
+      "Material Storage",
+    ],
+    Maintenance: [
+      "Equipment Maintenance",
+      "Preventive Maintenance",
+      "Repair Procedure",
+      "Tool Management",
+    ],
+    Safety: [
+      "Emergency Response",
+      "Safety Protocol",
+      "PPE Requirements",
+      "Incident Reporting",
+    ],
+  };
+
+  // Create SOPs with categories
+  const sops: SOPWithCategory[] = [];
+  for (const [category, procedures] of Object.entries(sopCategories)) {
+    for (const procedure of procedures) {
       const createdBy = faker.helpers.arrayElement(users);
       const lastModifiedBy = faker.helpers.arrayElement(users);
 
-      return prisma.sOP.create({
+      const sop = await prisma.sOP.create({
         data: {
-          name: useFaker
-            ? faker.commerce.productName()
-            : `SOP ${faker.number.int(999)}`,
-          description: useFaker
-            ? faker.lorem.paragraph()
-            : "A sample SOP description",
+          name: `${procedure} SOP`,
+          description: `Standard Operating Procedure for ${procedure}`,
           version: `${faker.number.int({ min: 1, max: 5 })}.${faker.number.int({
             min: 0,
             max: 9,
           })}`,
           content: useFaker ? faker.lorem.paragraphs(3) : "Sample content",
-          isActive: faker.datatype.boolean(),
+          isActive: true,
           createdById: createdBy.id,
           lastModifiedById: lastModifiedBy.id,
           requiredRoles: faker.helpers.arrayElements(
@@ -292,8 +338,43 @@ async function main() {
           ),
         },
       });
-    })
-  );
+      sops.push({ ...sop, category });
+    }
+  }
+
+  // Assign SOPs to positions based on department type
+  for (const position of positions) {
+    // Skip the default position
+    if (position.name === "DEFAULT_POSITION") continue;
+
+    // Determine which category of SOPs to assign based on position name
+    const relevantCategories = Object.keys(sopCategories).filter((category) =>
+      position.name.toLowerCase().includes(category.toLowerCase())
+    );
+
+    if (relevantCategories.length > 0) {
+      // Get SOPs from relevant categories
+      const relevantSops = sops.filter((sop) =>
+        relevantCategories.includes(sop.category)
+      );
+
+      // Select 2-4 random SOPs from relevant ones
+      const selectedSops = faker.helpers.arrayElements(
+        relevantSops,
+        faker.number.int({ min: 2, max: 4 })
+      );
+
+      // Update position with selected SOPs
+      await prisma.position.update({
+        where: { id: position.id },
+        data: {
+          sops: {
+            connect: selectedSops.map((sop) => ({ id: sop.id })),
+          },
+        },
+      });
+    }
+  }
 
   // Create documents
   const documentTypes: DocumentType[] = [

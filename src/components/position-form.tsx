@@ -1,21 +1,26 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Position } from "@prisma/client";
+import { Position, SOP } from "@prisma/client";
 
 interface PositionFormProps {
   onSubmit: (data: any) => Promise<void>;
   onCancel: () => void;
-  position?: Position;
+  position?: Position & { sops?: SOP[] };
+  availableSops?: SOP[];
 }
 
 export function PositionForm({
   onSubmit,
   onCancel,
   position,
+  availableSops = [],
 }: PositionFormProps) {
   const [name, setName] = useState(position?.name || "");
   const [description, setDescription] = useState(position?.description || "");
+  const [selectedSopIds, setSelectedSopIds] = useState<string[]>(
+    position?.sops?.map((sop) => sop.id) || []
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -27,6 +32,7 @@ export function PositionForm({
         id: position?.id,
         name,
         description,
+        sopIds: selectedSopIds,
       });
     } catch (error) {
       console.error("Failed to submit position:", error);
@@ -58,6 +64,31 @@ export function PositionForm({
           value={description}
           onChange={(e) => setDescription(e.target.value)}
         />
+      </div>
+
+      <div className="space-y-2">
+        <label className="block text-sm font-medium">Required SOPs</label>
+        <div className="space-y-2 max-h-48 overflow-y-auto border rounded-md p-2">
+          {availableSops.map((sop) => (
+            <label key={sop.id} className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                checked={selectedSopIds.includes(sop.id)}
+                onChange={(e) => {
+                  setSelectedSopIds((prev) =>
+                    e.target.checked
+                      ? [...prev, sop.id]
+                      : prev.filter((id) => id !== sop.id)
+                  );
+                }}
+                className="rounded border-gray-300"
+              />
+              <span className="text-sm">
+                {sop.name} (v{sop.version})
+              </span>
+            </label>
+          ))}
+        </div>
       </div>
 
       <div className="flex justify-end space-x-2">
