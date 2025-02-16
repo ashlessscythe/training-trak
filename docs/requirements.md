@@ -8,11 +8,11 @@ The Training Tracker is a corporate web application designed to manage and track
 
 ## Technical Stack
 
-- **Frontend**: Next.js 14 (or newer version if available, not `@latest`)
-- **Backend**: Prisma ORM with Neon.tech database
-- **Authentication**: Local authentication using NextAuth
-- **Design**: Sleek, corporate, and theme-aware (dark/light mode)
-- **Hosting**: Cloudflare Pages/Workers (if applicable)
+- [x] **Frontend**: Next.js 14 (or newer version if available, not `@latest`)
+- [x] **Backend**: Prisma ORM with Neon.tech database
+- [x] **Authentication**: Local authentication using NextAuth
+- [x] **Design**: Sleek, corporate, and theme-aware (dark/light mode)
+- [ ] **Hosting**: Cloudflare Pages/Workers (if applicable)
 
 ---
 
@@ -21,84 +21,118 @@ The Training Tracker is a corporate web application designed to manage and track
 ### 1. User Management
 
 - **Associates**:
-  - Belong to departments.
-  - Have roles and associated SOPs to complete.
+  - [x] Belong to departments.
+  - [x] Have roles and associated SOPs to complete.
 - **Departments**:
-  - Managed by Supervisors.
+  - [x] Managed by Supervisors.
 - **Supervisors**:
-  - Report to Managers.
+  - [x] Report to Managers.
 - **Roles**:
-  - Define specific SOP requirements.
+  - [x] Define specific SOP requirements.
 
 ### 2. Roles & SOP Management
 
-- Assign SOPs to roles.
-- Track SOP completion per associate.
-- Support for versioned SOPs with audit trails.
+- [x] Assign SOPs to roles.
+- [x] Track SOP completion per associate.
+- [x] Support for versioned SOPs with audit trails.
 
 ### 3. Administrative Features
 
 - **Admins**:
-  - Manage users, roles, SOPs, and departments.
-  - Generate training compliance reports.
+  - [x] Manage users, roles, SOPs, and departments.
+  - [ ] Generate training compliance reports.
 - **Approvers**:
-  - Approve training completions.
+  - [x] Approve training completions.
 - **Trainers**:
-  - Mark trainings as complete for associates.
+  - [x] Mark trainings as complete for associates.
 
 ### 4. Training Progress Tracking
 
-- Dashboard for associates to view training assignments and progress.
-- Supervisors and Managers can monitor department compliance.
+- [x] Dashboard for associates to view training assignments and progress.
+- [x] Supervisors and Managers can monitor department compliance.
 
 ### 5. Document Management
 
 - Upload and manage documents, including:
-  - Training documents.
-  - Signature sheets.
-  - SOPs themselves.
-- Scalable database table to handle document metadata:
-  - Attributes: `id`, `name`, `type`, `uploadedById`, `uploadedAt`, `relatedSopId`, etc.
+  - [x] Training documents.
+  - [x] Signature sheets.
+  - [x] SOPs themselves.
+- [x] Scalable database table to handle document metadata:
+  - [x] Attributes: `id`, `name`, `type`, `uploadedById`, `uploadedAt`, `relatedSopId`, etc.
 
 ---
 
 ## Design & UI
 
-- Sleek, corporate design with responsiveness for mobile and desktop.
-- **Theme-Aware**: Dynamic dark/light mode using Tailwind CSS or equivalent.
-- Intuitive navigation for all user roles.
+- [x] Sleek, corporate design with responsiveness for mobile and desktop.
+- [x] **Theme-Aware**: Dynamic dark/light mode using Tailwind CSS or equivalent.
+- [x] Intuitive navigation for all user roles.
 
 ---
 
 ## Authentication & Security
 
 - Local authentication with NextAuth:
-  - Email/password-based login.
-  - Role-based access control (RBAC).
-- Password hashing and salting.
-- Secure database storage using Prisma with Neon.tech.
+  - [x] Email/password-based login.
+  - [x] Role-based access control (RBAC).
+- [x] Password hashing and salting.
+- [x] Secure database storage using Prisma with Neon.tech.
 
 ---
 
 ## Initial Data Relationships
 
 1. **Users**:
-   - Attributes: `id`, `name`, `email`, `password`, `roleId`, `departmentId`, etc.
+   - [x] Attributes: `id`, `name`, `email`, `password`, `roleId`, `departmentId`, etc.
 2. **Departments**:
-   - Attributes: `id`, `name`, `supervisorId`, `managerId`, etc.
+   - [x] Attributes: `id`, `name`, `supervisorId`, `managerId`, etc.
 3. **Roles**:
-   - Attributes: `id`, `name`, `description`, etc.
+   - [x] Attributes: `id`, `name`, `description`, etc.
 4. **SOPs**:
-   - Attributes: `id`, `name`, `description`, `version`, etc.
+   - [x] Attributes: `id`, `name`, `description`, `version`, etc.
 5. **Training Progress**:
-   - Attributes: `id`, `userId`, `sopId`, `completionDate`, `approvedById`, etc.
+   - [x] Attributes: `id`, `userId`, `sopId`, `completionDate`, `approvedById`, etc.
 6. **Documents**:
-   - Attributes: `id`, `name`, `type` (e.g., training doc, signature sheet, SOP), `uploadedById`, `uploadedAt`, `relatedSopId`, `metadata` (JSON for extensibility), etc.
+   - [x] Attributes: `id`, `name`, `type` (e.g., training doc, signature sheet, SOP), `uploadedById`, `uploadedAt`, `relatedSopId`, `metadata` (JSON for extensibility), etc.
 
 ---
 
-## Next Steps
+## Remaining Tasks
 
-- Define additional workflows (e.g., training assignments, notification system).
-- Detail reporting and analytics requirements.
-- Clarify specific user interface components and interactions.
+### 1. Hosting & Deployment
+
+- [ ] **Cloudflare Pages Setup**:
+  - Configure build settings for Next.js deployment
+  - Set up environment variables
+  - Configure custom domain (if applicable)
+- [ ] **Performance Optimization**:
+  - Enable caching strategies
+  - Implement CDN configuration
+  - Optimize asset delivery
+
+### 2. Training Compliance Reports
+
+- [ ] **Report Generation**:
+  - Export reports in multiple formats (PDF, CSV)
+  - Customizable date ranges for reporting periods
+  - Filter options by department, position, and training type
+- [ ] **Report Types**:
+  - Training completion status by department
+  - Individual associate training history
+  - Overdue training notifications
+  - Department compliance percentages
+- [ ] **Data Visualization**:
+  - Progress charts and graphs
+  - Compliance trend analysis
+  - Department comparison views
+- [ ] **Automated Reports**:
+  - Schedule recurring reports
+  - Email delivery to stakeholders
+  - Customizable report templates
+
+## Future Enhancements
+
+- Notification system for training deadlines and updates
+- Mobile app development
+- Integration with external training platforms
+- Advanced analytics and predictive compliance tracking

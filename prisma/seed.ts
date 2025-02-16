@@ -206,7 +206,7 @@ async function main() {
     data: {
       email: "joe@joe.joe",
       name: "Joe Admin",
-      password: await bcrypt.hash("adminpass", 10),
+      password: await bcrypt.hash("sapass", 10),
       role: "SITE_ADMIN",
       isActive: true,
       siteId: sites[0].id,
