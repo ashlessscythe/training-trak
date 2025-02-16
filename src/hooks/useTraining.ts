@@ -28,7 +28,7 @@ interface UseTrainingOptions {
 }
 
 export function useTraining({ siteId }: UseTrainingOptions) {
-  const baseUrl = useMemo(() => "/api/trainings", []);
+  const baseUrl = useMemo(() => siteId ? `/api/sites/${siteId}/trainings` : "/api/trainings", [siteId]);
 
   const filterConfig = useMemo(
     () => ({
@@ -103,18 +103,7 @@ export function useTraining({ siteId }: UseTrainingOptions) {
     handleUpdateResource: handleUpdate,
   } = useResourceList<TrainingWithRelations, TrainingFilters>(resourceOptions);
 
-  // Filter trainings for specific site if siteId is provided
-  const filteredTrainings = useMemo(
-    () =>
-      siteId
-        ? trainings.filter(
-            (training) =>
-              training.user.siteId === siteId ||
-              training.sop.createdBy.siteId === siteId
-          )
-        : trainings,
-    [siteId, trainings]
-  );
+  const filteredTrainings = trainings;
 
   const getStatusColor = useMemo(
     () => (status: TrainingStatus) => {
