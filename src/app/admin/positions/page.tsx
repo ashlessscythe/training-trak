@@ -16,19 +16,40 @@ import {
 
 export default function PositionsPage() {
   const [positions, setPositions] = useState<Position[]>([]);
+  const [sites, setSites] = useState<any[]>([]);
+  const [selectedSite, setSelectedSite] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [selectedPosition, setSelectedPosition] = useState<
-    Position | undefined
-  >();
+  const [selectedPosition, setSelectedPosition] = useState<Position | undefined>();
   const [nameFilter, setNameFilter] = useState<string>("");
   const [sortBy, setSortBy] = useState<"name" | "createdAt">("name");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
 
+  // Fetch sites
+  useEffect(() => {
+    const fetchSites = async () => {
+      try {
+        const response = await fetch("/api/sites");
+        const data = await response.json();
+        setSites(data);
+      } catch (error) {
+        console.error("Failed to fetch sites:", error);
+      }
+    };
+    fetchSites();
+  }, []);
+
+  // Fetch positions when site is selected
   useEffect(() => {
     const fetchData = async () => {
+      if (!selectedSite) {
+        setPositions([]);
+        setIsLoading(false);
+        return;
+      }
+
       try {
-        const response = await fetch("/api/positions");
+        const response = await fetch(`/api/sites/${selectedSite}/positions`);
         const data = await response.json();
         setPositions(data);
       } catch (error) {
@@ -39,14 +60,19 @@ export default function PositionsPage() {
     };
 
     fetchData();
-  }, []);
+  }, [selectedSite]);
 
   const handleCreatePosition = async (data: any) => {
+    if (!selectedSite) {
+      alert("Please select a site first");
+      return;
+    }
+
     try {
-      const response = await fetch("/api/positions", {
+      const response = await fetch(`/api/sites/${selectedSite}/positions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify({ ...data, siteId: selectedSite }),
       });
 
       if (!response.ok) {
@@ -63,8 +89,13 @@ export default function PositionsPage() {
   };
 
   const handleUpdatePosition = async (data: any) => {
+    if (!selectedSite) {
+      alert("Please select a site first");
+      return;
+    }
+
     try {
-      const response = await fetch("/api/positions", {
+      const response = await fetch(`/api/sites/${selectedSite}/positions`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
@@ -89,10 +120,15 @@ export default function PositionsPage() {
   };
 
   const handleDeletePosition = async (positionId: string) => {
+    if (!selectedSite) {
+      alert("Please select a site first");
+      return;
+    }
+
     if (!confirm("Are you sure you want to delete this position?")) return;
 
     try {
-      const response = await fetch(`/api/positions?id=${positionId}`, {
+      const response = await fetch(`/api/sites/${selectedSite}/positions?id=${positionId}`, {
         method: "DELETE",
       });
 
@@ -159,13 +195,32 @@ export default function PositionsPage() {
             >
               Clear Filters
             </Button>
-            <Button onClick={() => setIsDialogOpen(true)}>
+            <Button 
+              onClick={() => setIsDialogOpen(true)}
+              disabled={!selectedSite}
+            >
               Create Position
             </Button>
           </div>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-4">
+          <Select
+            value={selectedSite}
+            onValueChange={setSelectedSite}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select site" />
+            </SelectTrigger>
+            <SelectContent>
+              {sites.map((site) => (
+                <SelectItem key={site.id} value={site.id}>
+                  {site.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
           <Input
             placeholder="Search by name"
             value={nameFilter}
@@ -200,8 +255,16 @@ export default function PositionsPage() {
       <div className="mb-4"></div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {Array.isArray(filteredAndSortedPositions) &&
-        filteredAndSortedPositions.length > 0 ? (
+        {!selectedSite ? (
+          <Card>
+            <CardContent className="py-8">
+              <p className="text-center text-muted-foreground">
+                Please select a site to view positions
+              </p>
+            </CardContent>
+          </Card>
+        ) : Array.isArray(filteredAndSortedPositions) &&
+          filteredAndSortedPositions.length > 0 ? (
           filteredAndSortedPositions.map((position) => (
             <Card key={position.id}>
               <CardHeader>
@@ -257,9 +320,7 @@ export default function PositionsPage() {
           setIsDialogOpen(false);
           setSelectedPosition(undefined);
         }}
-        onSubmit={
-          selectedPosition ? handleUpdatePosition : handleCreatePosition
-        }
+        onSubmit={selectedPosition ? handleUpdatePosition : handleCreatePosition}
         position={selectedPosition}
         title={selectedPosition ? "Edit Position" : "Create Position"}
       />

@@ -6,12 +6,32 @@ import { authOptions } from "@/lib/auth";
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session || !["OWNER", "ADMIN"].includes(session.user?.role || "")) {
+    if (!session?.user?.email || !["OWNER", "ADMIN"].includes(session.user?.role || "")) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
+    const currentUser = await prisma.user.findUnique({
+      where: { email: session.user.email! },
+      select: { role: true, siteId: true },
+    });
+
+    if (!currentUser) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    // If user is OWNER or ADMIN, they can see all positions
+    // Otherwise, only show positions from their site
     const positions = await prisma.position.findMany({
-      where: { isActive: true },
+      where: {
+        isActive: true,
+        ...(["OWNER", "ADMIN"].includes(currentUser.role)
+          ? {}
+          : {
+              site: {
+                id: currentUser.siteId,
+              },
+            }),
+      },
       orderBy: { name: "asc" },
       include: {
         site: true,
@@ -27,102 +47,4 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export async function POST(request: NextRequest) {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session || !["OWNER", "ADMIN"].includes(session.user?.role || "")) {
-      return new NextResponse("Unauthorized", { status: 401 });
-    }
-
-    const data = await request.json();
-    if (!data.siteId) {
-      return NextResponse.json(
-        { error: "Site ID is required" },
-        { status: 400 }
-      );
-    }
-
-    const position = await prisma.position.create({
-      data: {
-        name: data.name,
-        description: data.description,
-        isActive: true,
-        site: {
-          connect: { id: data.siteId },
-        },
-      },
-      include: {
-        site: true,
-      },
-    });
-    return NextResponse.json(position);
-  } catch (error) {
-    console.error("Failed to create position:", error);
-    return NextResponse.json(
-      { error: "Failed to create position" },
-      { status: 500 }
-    );
-  }
-}
-
-export async function PUT(request: NextRequest) {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session || !["OWNER", "ADMIN"].includes(session.user?.role || "")) {
-      return new NextResponse("Unauthorized", { status: 401 });
-    }
-
-    const data = await request.json();
-    const position = await prisma.position.update({
-      where: { id: data.id },
-      data: {
-        name: data.name,
-        description: data.description,
-        isActive: data.isActive,
-      },
-      include: {
-        site: true,
-      },
-    });
-    return NextResponse.json(position);
-  } catch (error) {
-    console.error("Failed to update position:", error);
-    return NextResponse.json(
-      { error: "Failed to update position" },
-      { status: 500 }
-    );
-  }
-}
-
-export async function DELETE(request: NextRequest) {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session || !["OWNER", "ADMIN"].includes(session.user?.role || "")) {
-      return new NextResponse("Unauthorized", { status: 401 });
-    }
-
-    const { searchParams } = new URL(request.url);
-    const id = searchParams.get("id");
-    if (!id) {
-      return NextResponse.json(
-        { error: "Position ID is required" },
-        { status: 400 }
-      );
-    }
-
-    const position = await prisma.position.update({
-      where: { id },
-      data: { isActive: false },
-      include: {
-        site: true,
-      },
-    });
-    return NextResponse.json(position);
-  } catch (error) {
-    console.error("Failed to delete position:", error);
-    return NextResponse.json(
-      { error: "Failed to delete position" },
-      { status: 500 }
-    );
-  }
-}
+// Only GET endpoint is needed for admin interface
