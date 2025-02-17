@@ -75,6 +75,98 @@ export async function GET(
   }
 }
 
+export async function POST(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const session = await getServerSession();
+    if (!session?.user?.email) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const currentUser = await prisma.user.findUnique({
+      where: { email: session.user.email },
+      select: { role: true, siteId: true },
+    });
+
+    if (!currentUser) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    // Only allow site admins, admins, and owners to assign training
+    if (
+      !["SITE_ADMIN", "ADMIN", "OWNER"].includes(currentUser.role) ||
+      (currentUser.role === "SITE_ADMIN" && currentUser.siteId !== params.id)
+    ) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const data = await req.json();
+    const { userId, sopIds } = data;
+
+    if (!userId || !sopIds || !Array.isArray(sopIds) || sopIds.length === 0) {
+      return NextResponse.json(
+        { error: "User ID and at least one SOP ID are required" },
+        { status: 400 }
+      );
+    }
+
+    // Verify user belongs to this site
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { siteId: true },
+    });
+
+    if (!user || user.siteId !== params.id) {
+      return NextResponse.json(
+        { error: "User not found or not in this site" },
+        { status: 404 }
+      );
+    }
+
+    // Create training records for each SOP
+    const trainings = await prisma.$transaction(
+      sopIds.map((sopId) =>
+        prisma.trainingProgress.create({
+          data: {
+            userId,
+            sopId,
+            status: "IN_PROGRESS",
+          },
+          include: {
+            user: {
+              select: {
+                name: true,
+                siteId: true,
+              },
+            },
+            sop: {
+              select: {
+                name: true,
+                version: true,
+                createdBy: {
+                  select: {
+                    siteId: true,
+                  },
+                },
+              },
+            },
+          },
+        })
+      )
+    );
+
+    return NextResponse.json(trainings);
+  } catch (error) {
+    console.error("Error creating training assignments:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}
+
 export async function PUT(
   req: NextRequest,
   { params }: { params: { id: string } }

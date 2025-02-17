@@ -2,6 +2,8 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { TrainingStatus } from "@prisma/client";
 import { TrainingDialog } from "@/components/training-dialog";
+import { AssignTrainingDialog } from "@/components/assign-training-dialog";
+import { TrainingViewSelector } from "@/components/training-view-selector";
 import {
   Select,
   SelectContent,
@@ -10,7 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useTraining } from "@/hooks/useTraining";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { ListView } from "@/components/list-view";
 import { ViewModeToggle } from "@/components/view-mode-toggle";
 import { useListView } from "@/hooks/useListView";
@@ -24,8 +26,12 @@ export function TrainingList({
   siteId,
   title = "Training Progress",
 }: TrainingListProps) {
+  const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
   const {
     trainings,
+    groupedTrainings,
+    viewType,
+    setViewType,
     isLoading,
     isDialogOpen,
     selectedTraining,
@@ -164,11 +170,20 @@ export function TrainingList({
     <div className="container mx-auto py-6">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">{title}</h1>
-        <ViewModeToggle viewMode={viewMode} onChange={setViewMode} />
+        <div className="flex items-center gap-4">
+          <TrainingViewSelector value={viewType} onChange={setViewType} />
+          <ViewModeToggle viewMode={viewMode} onChange={setViewMode} />
+        </div>
       </div>
 
       <div className="flex justify-between items-center mb-4">
         <div className="flex gap-4">
+          <Button
+            onClick={() => setIsAssignDialogOpen(true)}
+            className="mb-4"
+          >
+            Assign Training
+          </Button>
           <Select
             value={filters.status || "ALL"}
             onValueChange={(value) =>
@@ -215,13 +230,44 @@ export function TrainingList({
         </div>
       </div>
 
-      <ListView
-        data={trainings}
-        columns={columns}
-        view={currentView}
-        renderCard={renderCard}
-        keyExtractor={(training) => training.id}
-        emptyMessage="No training records found."
+      <div className="space-y-8">
+        {Object.entries(groupedTrainings).map(([groupName, groupTrainings]) => (
+          <div key={groupName} className="space-y-4">
+            <h2 className="text-2xl font-semibold">{groupName}</h2>
+            <ListView
+              data={groupTrainings}
+              columns={columns}
+              view={currentView}
+              renderCard={renderCard}
+              keyExtractor={(training) => training.id}
+              emptyMessage="No training records found."
+            />
+          </div>
+        ))}
+      </div>
+
+      <AssignTrainingDialog
+        isOpen={isAssignDialogOpen}
+        onClose={() => setIsAssignDialogOpen(false)}
+        onSubmit={async (data) => {
+          try {
+            const response = await fetch(`/api/sites/${siteId}/trainings`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(data),
+            });
+
+            if (!response.ok) {
+              throw new Error("Failed to assign training");
+            }
+
+            setIsAssignDialogOpen(false);
+            fetchTrainings();
+          } catch (error) {
+            console.error("Error assigning training:", error);
+          }
+        }}
+        siteId={siteId || ""}
       />
 
       <TrainingDialog

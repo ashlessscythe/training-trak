@@ -1,15 +1,20 @@
 import { TrainingProgress, TrainingStatus } from "@prisma/client";
 import { useResourceList } from "./useResourceList";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { TrainingViewType } from "@/components/training-view-selector";
 
 interface TrainingFilters {
   status: TrainingStatus | "ALL";
+  viewType: TrainingViewType;
 }
 
 type TrainingWithRelations = TrainingProgress & {
   user: {
     name: string;
     siteId: string;
+    department?: {
+      name: string;
+    };
   };
   sop: {
     name: string;
@@ -28,6 +33,7 @@ interface UseTrainingOptions {
 }
 
 export function useTraining({ siteId }: UseTrainingOptions) {
+  const [viewType, setViewType] = useState<TrainingViewType>("user");
   const baseUrl = useMemo(() => siteId ? `/api/sites/${siteId}/trainings` : "/api/trainings", [siteId]);
 
   const filterConfig = useMemo(
@@ -103,7 +109,41 @@ export function useTraining({ siteId }: UseTrainingOptions) {
     handleUpdateResource: handleUpdate,
   } = useResourceList<TrainingWithRelations, TrainingFilters>(resourceOptions);
 
-  const filteredTrainings = trainings;
+  const groupedTrainings = useMemo(() => {
+    const groupByType = (trainings: TrainingWithRelations[]) => {
+      switch (viewType) {
+        case "user":
+          return trainings.reduce((acc, training) => {
+            const userName = training.user.name;
+            if (!acc[userName]) {
+              acc[userName] = [];
+            }
+            acc[userName].push(training);
+            return acc;
+          }, {} as Record<string, TrainingWithRelations[]>);
+        case "department":
+          return trainings.reduce((acc, training) => {
+            const deptName = training.user.department?.name || "No Department";
+            if (!acc[deptName]) {
+              acc[deptName] = [];
+            }
+            acc[deptName].push(training);
+            return acc;
+          }, {} as Record<string, TrainingWithRelations[]>);
+        case "sop":
+        default:
+          return trainings.reduce((acc, training) => {
+            const sopName = training.sop.name;
+            if (!acc[sopName]) {
+              acc[sopName] = [];
+            }
+            acc[sopName].push(training);
+            return acc;
+          }, {} as Record<string, TrainingWithRelations[]>);
+      }
+    };
+    return groupByType(trainings);
+  }, [trainings, viewType]);
 
   const getStatusColor = useMemo(
     () => (status: TrainingStatus) => {
@@ -122,7 +162,10 @@ export function useTraining({ siteId }: UseTrainingOptions) {
   );
 
   return {
-    trainings: filteredTrainings,
+    trainings,
+    groupedTrainings,
+    viewType,
+    setViewType,
     isLoading,
     isDialogOpen,
     selectedTraining,

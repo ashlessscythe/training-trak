@@ -66,7 +66,7 @@ export function useResourceList<T extends { id: string }, F = string>(
         throw error;
       }
     },
-    [options.onCreateResource, fetchResources]
+    [options, fetchResources]
   );
 
   const handleUpdateResource = useCallback(
@@ -84,7 +84,7 @@ export function useResourceList<T extends { id: string }, F = string>(
         throw error;
       }
     },
-    [options.onUpdateResource, fetchResources]
+    [options, fetchResources]
   );
 
   const handleDeleteResource = useCallback(
@@ -100,7 +100,7 @@ export function useResourceList<T extends { id: string }, F = string>(
         throw error;
       }
     },
-    [options.onDeleteResource, fetchResources]
+    [options, fetchResources]
   );
 
   const filteredResources = useMemo(() => {

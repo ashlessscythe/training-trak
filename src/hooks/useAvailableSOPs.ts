@@ -1,17 +1,16 @@
 import { useEffect, useState } from "react";
 import { SOP } from "@prisma/client";
 
-export function useAvailableSOPs(siteId?: string) {
+interface UseAvailableSOPsOptions {
+  siteId: string;
+}
+
+export function useAvailableSOPs({ siteId }: UseAvailableSOPsOptions) {
   const [sops, setSOPs] = useState<SOP[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const fetchSOPs = async () => {
-      if (!siteId) {
-        setSOPs([]);
-        setIsLoading(false);
-        return;
-      }
 
       try {
         const response = await fetch(`/api/sites/${siteId}/sops`);

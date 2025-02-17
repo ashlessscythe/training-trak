@@ -26,7 +26,7 @@ export function PositionDialog({
 }: PositionDialogProps) {
   const params = useParams();
   const siteId = params.id as string;
-  const { sops, isLoading } = useAvailableSOPs(siteId);
+  const { sops, isLoading } = useAvailableSOPs({ siteId });
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent>
