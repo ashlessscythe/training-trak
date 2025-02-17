@@ -8,8 +8,9 @@ interface TrainingFilters {
   viewType: TrainingViewType;
 }
 
-type TrainingWithRelations = TrainingProgress & {
+export type TrainingWithRelations = TrainingProgress & {
   user: {
+    id: string;
     name: string;
     siteId: string;
     department?: {
@@ -17,6 +18,7 @@ type TrainingWithRelations = TrainingProgress & {
     };
   };
   sop: {
+    id: string;
     name: string;
     version: string;
     createdBy: {
@@ -30,11 +32,18 @@ type TrainingWithRelations = TrainingProgress & {
 
 interface UseTrainingOptions {
   siteId?: string;
+  userId?: string;
 }
 
-export function useTraining({ siteId }: UseTrainingOptions) {
+export function useTraining({ siteId, userId }: UseTrainingOptions) {
   const [viewType, setViewType] = useState<TrainingViewType>("user");
-  const baseUrl = useMemo(() => siteId ? `/api/sites/${siteId}/trainings` : "/api/trainings", [siteId]);
+  const baseUrl = useMemo(() => {
+    const base = siteId ? `/api/sites/${siteId}/trainings` : "/api/trainings";
+    if (userId) {
+      return `${base}?userId=${userId}`;
+    }
+    return base;
+  }, [siteId, userId]);
 
   const filterConfig = useMemo(
     () => ({

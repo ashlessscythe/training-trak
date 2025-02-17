@@ -14,9 +14,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useState } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useAvailableSOPs } from "@/hooks/useAvailableSOPs";
 import { useAvailableUsers } from "@/hooks/useAvailableUsers";
+import { useTraining } from "@/hooks/useTraining";
+import { User, SOP } from "@prisma/client";
+import type { TrainingWithRelations } from "@/hooks/useTraining";
 
 interface AssignTrainingDialogProps {
   isOpen: boolean;
@@ -35,6 +38,31 @@ export function AssignTrainingDialog({
   const [selectedSOPs, setSelectedSOPs] = useState<string[]>([]);
   const { sops, isLoading: sopsLoading } = useAvailableSOPs({ siteId });
   const { users, isLoading: usersLoading } = useAvailableUsers({ siteId });
+  const { trainings, isLoading: trainingsLoading, fetchTrainings } = useTraining({ 
+    siteId,
+    userId: selectedUser || undefined 
+  });
+
+  // Refetch trainings when user changes
+  useEffect(() => {
+    if (selectedUser) {
+      fetchTrainings();
+    }
+  }, [selectedUser, fetchTrainings]);
+
+  const handleUserChange = (userId: string) => {
+    setSelectedUser(userId);
+  };
+  const assignedSOPs = useMemo(() => {
+    if (!selectedUser) return new Set<string>();
+    const assigned = new Set(
+      trainings
+        .filter(t => t.userId === selectedUser && t.status !== "REJECTED")
+        .map(t => t.sopId)
+    );
+    console.log('Assigned SOPs:', Array.from(assigned));
+    return assigned;
+  }, [selectedUser, trainings]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,6 +79,9 @@ export function AssignTrainingDialog({
   };
 
   const toggleSOP = (sopId: string) => {
+    // Don't allow toggling already assigned SOPs
+    if (assignedSOPs.has(sopId)) return;
+    
     setSelectedSOPs((current) =>
       current.includes(sopId)
         ? current.filter((id) => id !== sopId)
@@ -65,7 +96,7 @@ export function AssignTrainingDialog({
           <DialogTitle>Assign Training</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-6">
-          {(usersLoading || sopsLoading) ? (
+          {(usersLoading || sopsLoading || trainingsLoading) ? (
             <div className="text-center py-4">Loading...</div>
           ) : (
             <>
@@ -73,7 +104,7 @@ export function AssignTrainingDialog({
                 <label className="text-sm font-medium">User</label>
             <Select
               value={selectedUser}
-              onValueChange={setSelectedUser}
+              onValueChange={handleUserChange}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select user" />
@@ -98,10 +129,27 @@ export function AssignTrainingDialog({
                     id={sop.id}
                     checked={selectedSOPs.includes(sop.id)}
                     onChange={() => toggleSOP(sop.id)}
-                    className="h-4 w-4 rounded border-gray-300"
+                    className={`h-4 w-4 rounded border-gray-300 ${
+                      assignedSOPs.has(sop.id) 
+                        ? 'opacity-50 cursor-not-allowed bg-muted' 
+                        : ''
+                    }`}
+                    disabled={assignedSOPs.has(sop.id)}
                   />
-                  <label htmlFor={sop.id} className="text-sm">
+                  <label 
+                    htmlFor={sop.id} 
+                    className={`text-sm flex items-center gap-2 ${
+                      assignedSOPs.has(sop.id) 
+                        ? 'text-muted-foreground bg-muted/30 p-1 rounded-md w-full' 
+                        : ''
+                    }`}
+                  >
                     {sop.name} (v{sop.version})
+                    {assignedSOPs.has(sop.id) && (
+                      <span className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded-full ml-auto">
+                        Already assigned
+                      </span>
+                    )}
                   </label>
                 </div>
               ))}

@@ -1,4 +1,5 @@
 import { PrismaClient, Role, Site } from "@prisma/client";
+export const dynamic = 'force-dynamic';
 import NextAuth, { DefaultSession } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";

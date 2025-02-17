@@ -6,7 +6,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-export type TrainingViewType = "sop" | "user" | "department";
+export type TrainingViewType = "user" | "sop" | "department";
 
 interface TrainingViewSelectorProps {
   value: TrainingViewType;
@@ -20,8 +20,8 @@ export function TrainingViewSelector({ value, onChange }: TrainingViewSelectorPr
         <SelectValue placeholder="View by" />
       </SelectTrigger>
       <SelectContent>
-        <SelectItem value="sop">View by SOP</SelectItem>
         <SelectItem value="user">View by User</SelectItem>
+        <SelectItem value="sop">View by SOP</SelectItem>
         <SelectItem value="department">View by Department</SelectItem>
       </SelectContent>
     </Select>

@@ -12,7 +12,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useTraining } from "@/hooks/useTraining";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
+import { ChevronRight, ChevronDown } from "lucide-react";
 import { ListView } from "@/components/list-view";
 import { ViewModeToggle } from "@/components/view-mode-toggle";
 import { useListView } from "@/hooks/useListView";
@@ -49,6 +50,7 @@ export function TrainingList({
   } = useTraining({ siteId });
 
   const { viewMode, setViewMode, currentView } = useListView();
+  const [expandedGroups, setExpandedGroups] = useState<string[]>([]);
 
   useEffect(() => {
     fetchTrainings();
@@ -62,7 +64,68 @@ export function TrainingList({
     );
   }
 
-  const columns = [
+  const toggleGroup = (groupName: string) => {
+    setExpandedGroups(prev => 
+      prev.includes(groupName) 
+        ? prev.filter(name => name !== groupName)
+        : [...prev, groupName]
+    );
+  };
+
+  const parentColumns = [
+    {
+      header: viewType === "user" ? "User" : viewType === "department" ? "Department" : "SOP",
+      accessor: (groupName: string) => (
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6"
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleGroup(groupName);
+            }}
+          >
+            {expandedGroups.includes(groupName) ? (
+              <ChevronDown className="h-4 w-4" />
+            ) : (
+              <ChevronRight className="h-4 w-4" />
+            )}
+          </Button>
+          <span className="font-medium">{groupName}</span>
+        </div>
+      ),
+    },
+    {
+      header: "Count",
+      accessor: (groupName: string) => groupedTrainings[groupName].length,
+      className: "w-24",
+    },
+    {
+      header: "Progress",
+      accessor: (groupName: string) => {
+        const trainings = groupedTrainings[groupName];
+        const approved = trainings.filter(t => t.status === "APPROVED").length;
+        const total = trainings.length;
+        return (
+          <div className="flex items-center gap-2">
+            <div className="w-32 h-2 bg-gray-200 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-green-600 transition-all"
+                style={{ width: `${(approved / total) * 100}%` }}
+              />
+            </div>
+            <span className="text-sm text-muted-foreground">
+              {approved}/{total}
+            </span>
+          </div>
+        );
+      },
+      className: "w-48",
+    },
+  ];
+
+  const childColumns = [
     {
       header: "SOP",
       accessor: (training: any) => (
@@ -230,20 +293,61 @@ export function TrainingList({
         </div>
       </div>
 
-      <div className="space-y-8">
-        {Object.entries(groupedTrainings).map(([groupName, groupTrainings]) => (
-          <div key={groupName} className="space-y-4">
-            <h2 className="text-2xl font-semibold">{groupName}</h2>
-            <ListView
-              data={groupTrainings}
-              columns={columns}
-              view={currentView}
-              renderCard={renderCard}
-              keyExtractor={(training) => training.id}
-              emptyMessage="No training records found."
-            />
-          </div>
-        ))}
+      <div className="rounded-md border">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b bg-muted/50">
+                {parentColumns.map((column, index) => (
+                  <th
+                    key={index}
+                    className={`px-4 py-3 text-left text-sm font-medium ${
+                      column.className || ""
+                    }`}
+                  >
+                    {column.header}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {Object.entries(groupedTrainings).map(([groupName, groupTrainings]) => (
+                <>
+                  <tr
+                    key={groupName}
+                    className="border-b hover:bg-muted/50 cursor-pointer"
+                    onClick={() => toggleGroup(groupName)}
+                  >
+                    {parentColumns.map((column, index) => (
+                      <td
+                        key={index}
+                        className={`px-4 py-3 ${column.className || ""}`}
+                      >
+                        {column.accessor(groupName)}
+                      </td>
+                    ))}
+                  </tr>
+                  {expandedGroups.includes(groupName) && (
+                    <tr>
+                      <td colSpan={parentColumns.length} className="p-0">
+                        <div className="border-l-2 border-l-primary/20 ml-3">
+                          <ListView
+                            data={groupTrainings}
+                            columns={childColumns}
+                            view="table"
+                            renderCard={renderCard}
+                            keyExtractor={(training) => training.id}
+                            emptyMessage="No training records found."
+                          />
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <AssignTrainingDialog

@@ -1,4 +1,5 @@
 import { getServerSession } from "next-auth/next";
+export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
@@ -30,11 +31,21 @@ export async function GET(
       return NextResponse.json({ error: "Site not found" }, { status: 404 });
     }
 
+    // Get userId from query params if present
+    const { searchParams } = new URL(req.url);
+    const userId = searchParams.get('userId');
+
     const trainings = await prisma.trainingProgress.findMany({
       where: {
-        OR: [
-          { user: { siteId: params.id } },
-          { sop: { createdBy: { siteId: params.id } } },
+        AND: [
+          {
+            OR: [
+              { user: { siteId: params.id } },
+              { sop: { createdBy: { siteId: params.id } } },
+            ],
+          },
+          // Add userId filter if provided
+          ...(userId ? [{ userId }] : []),
         ],
       },
       include: {
