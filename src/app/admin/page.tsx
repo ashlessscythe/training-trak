@@ -34,6 +34,11 @@ export default function AdminPage() {
       href: "/admin/positions",
       description: "Manage job positions and roles",
     },
+    {
+      name: "Training Status",
+      href: "/admin/training",
+      description: "View training status across all sites",
+    },
   ];
 
   return (

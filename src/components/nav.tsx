@@ -3,11 +3,14 @@ import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
 const baseNavigation = [
+  // Common for all logged-in users
   {
     name: "Dashboard",
     href: "/dashboard",
-    roles: ["OWNER", "ADMIN", "SUPERVISOR", "USER"],
+    roles: ["OWNER", "ADMIN", "SITE_ADMIN", "SUPERVISOR", "USER"],
   },
+  
+  // Main sections
   {
     name: "SOPs",
     href: "/sops",
@@ -17,7 +20,7 @@ const baseNavigation = [
   },
   {
     name: "Training",
-    href: "/training",
+    href: "/admin/training", // Changed from "/training" to "/admin/training"
     roles: ["OWNER", "ADMIN"],
     siteHref: (siteId: string) => `/sites/${siteId}/training`,
     siteRoles: ["SITE_ADMIN", "SUPERVISOR", "USER"],
@@ -29,7 +32,11 @@ const baseNavigation = [
     siteHref: (siteId: string) => `/sites/${siteId}/documents`,
     siteRoles: ["SITE_ADMIN", "SUPERVISOR", "USER"],
   },
+  
+  // Admin sections
   { name: "Admin", href: "/admin", roles: ["OWNER", "ADMIN"] },
+  
+  // Configuration sections - for OWNER/ADMIN at global level
   {
     name: "Departments",
     href: "/admin/departments",
@@ -56,7 +63,7 @@ export function Nav() {
     let nav = [...baseNavigation];
     const siteId = session?.user?.site?.id;
 
-    // Add site users link for site admins
+    // Add site-specific management links for site admins
     if (userRole === "SITE_ADMIN" && siteId) {
       nav.push({
         name: "Site Users",

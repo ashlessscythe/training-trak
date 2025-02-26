@@ -21,7 +21,9 @@ export default function Home() {
               ensure compliance across your organization.
             </p>
             <div className="flex flex-wrap justify-center gap-4">
-              <Button size="lg">Get Started</Button>
+              <Button size="lg" asChild>
+                <a href="/auth/signup">Get Started</a>
+              </Button>
               <Button variant="outline" size="lg" asChild>
                 <a href="#features">Learn More</a>
               </Button>

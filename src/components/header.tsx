@@ -41,9 +41,6 @@ export function Header() {
           ) : (
             <>
               <Button variant="link" size="sm" asChild>
-                <Link href="#features">Features</Link>
-              </Button>
-              <Button variant="link" size="sm" asChild>
                 <Link href="/auth/signup">Sign Up</Link>
               </Button>
               <Button variant="default" size="sm" asChild>
@@ -99,9 +96,6 @@ export function Header() {
               </>
             ) : (
               <div className="space-y-2">
-                <Button variant="link" size="sm" asChild className="w-full">
-                  <Link href="#features">Features</Link>
-                </Button>
                 <Button variant="link" size="sm" asChild className="w-full">
                   <Link href="/auth/signup">Sign Up</Link>
                 </Button>
