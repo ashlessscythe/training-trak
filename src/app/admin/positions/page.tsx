@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Position } from "@prisma/client";
+import { Position, SOP } from "@prisma/client";
 import { PositionDialog } from "@/components/position-dialog";
 import { Input } from "@/components/ui/input";
 import {
@@ -13,17 +13,25 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ListView } from "@/components/list-view";
+import { ViewModeToggle } from "@/components/view-mode-toggle";
+import { useListView } from "@/hooks/useListView";
+
+interface PositionWithSOPs extends Position {
+  sops?: SOP[];
+}
 
 export default function PositionsPage() {
-  const [positions, setPositions] = useState<Position[]>([]);
+  const [positions, setPositions] = useState<PositionWithSOPs[]>([]);
   const [sites, setSites] = useState<any[]>([]);
   const [selectedSite, setSelectedSite] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [selectedPosition, setSelectedPosition] = useState<Position | undefined>();
+  const [selectedPosition, setSelectedPosition] = useState<PositionWithSOPs | undefined>();
   const [nameFilter, setNameFilter] = useState<string>("");
   const [sortBy, setSortBy] = useState<"name" | "createdAt">("name");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  const { viewMode, setViewMode, currentView } = useListView();
 
   // Fetch sites
   useEffect(() => {
@@ -171,6 +179,57 @@ export default function PositionsPage() {
     return filtered;
   }, [positions, nameFilter, sortBy, sortOrder]);
 
+  // Function to render a position card
+  const renderPositionCard = (position: PositionWithSOPs) => (
+    <Card key={position.id}>
+      <CardHeader>
+        <div className="flex justify-between items-start">
+          <CardTitle>{position.name}</CardTitle>
+          <div className="flex items-center space-x-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setSelectedPosition(position);
+                setIsDialogOpen(true);
+              }}
+            >
+              Edit
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => handleDeletePosition(position.id)}
+            >
+              Delete
+            </Button>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-2">
+          <p className="text-sm text-muted-foreground">
+            {position.description || "No description provided"}
+          </p>
+          <div>
+            <p className="text-sm font-medium">Required SOPs:</p>
+            <p className="text-sm text-muted-foreground">
+              {(position.sops || []).length > 0
+                ? (position.sops || [])
+                    .filter((sop) => sop.isActive)
+                    .map((sop) => `${sop.name} (v${sop.version})`)
+                    .join(", ")
+                : "No SOPs required"}
+            </p>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Created: {new Date(position.createdAt).toLocaleDateString()}
+          </p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+
   if (isLoading) {
     return (
       <div className="container mx-auto py-10">
@@ -184,23 +243,26 @@ export default function PositionsPage() {
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <h1 className="text-3xl font-bold">Positions</h1>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setNameFilter("");
-                setSortBy("name");
-                setSortOrder("asc");
-              }}
-            >
-              Clear Filters
-            </Button>
-            <Button 
-              onClick={() => setIsDialogOpen(true)}
-              disabled={!selectedSite}
-            >
-              Create Position
-            </Button>
+          <div className="flex items-center gap-4">
+            <ViewModeToggle viewMode={viewMode} onChange={setViewMode} />
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setNameFilter("");
+                  setSortBy("name");
+                  setSortOrder("asc");
+                }}
+              >
+                Clear Filters
+              </Button>
+              <Button 
+                onClick={() => setIsDialogOpen(true)}
+                disabled={!selectedSite}
+              >
+                Create Position
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -254,65 +316,84 @@ export default function PositionsPage() {
       </div>
       <div className="mb-4"></div>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {!selectedSite ? (
-          <Card>
-            <CardContent className="py-8">
-              <p className="text-center text-muted-foreground">
-                Please select a site to view positions
-              </p>
-            </CardContent>
-          </Card>
-        ) : Array.isArray(filteredAndSortedPositions) &&
-          filteredAndSortedPositions.length > 0 ? (
-          filteredAndSortedPositions.map((position) => (
-            <Card key={position.id}>
-              <CardHeader>
-                <div className="flex justify-between items-start">
-                  <CardTitle>{position.name}</CardTitle>
-                  <div className="flex items-center space-x-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setSelectedPosition(position);
-                        setIsDialogOpen(true);
-                      }}
-                    >
-                      Edit
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => handleDeletePosition(position.id)}
-                    >
-                      Delete
-                    </Button>
-                  </div>
+      {!selectedSite ? (
+        <Card>
+          <CardContent className="py-8">
+            <p className="text-center text-muted-foreground">
+              Please select a site to view positions
+            </p>
+          </CardContent>
+        </Card>
+      ) : Array.isArray(filteredAndSortedPositions) &&
+        filteredAndSortedPositions.length > 0 ? (
+        <ListView
+          data={filteredAndSortedPositions}
+          columns={[
+            {
+              header: "Name",
+              accessor: "name",
+            },
+            {
+              header: "Description",
+              accessor: (position) => position.description || "No description provided",
+              className: "max-w-md truncate",
+            },
+            {
+              header: "Required SOPs",
+              accessor: (position) => 
+                (position.sops || []).length > 0
+                  ? (position.sops || [])
+                      .filter((sop) => sop.isActive)
+                      .map((sop) => `${sop.name} (v${sop.version})`)
+                      .join(", ")
+                  : "No SOPs required",
+              className: "max-w-md truncate",
+            },
+            {
+              header: "Created",
+              accessor: (position) => new Date(position.createdAt).toLocaleDateString(),
+              className: "w-32",
+            },
+            {
+              header: "Actions",
+              accessor: (position) => (
+                <div className="flex items-center space-x-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setSelectedPosition(position);
+                      setIsDialogOpen(true);
+                    }}
+                  >
+                    Edit
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => handleDeletePosition(position.id)}
+                  >
+                    Delete
+                  </Button>
                 </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  <p className="text-sm text-muted-foreground">
-                    {position.description || "No description provided"}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    Created: {new Date(position.createdAt).toLocaleDateString()}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          ))
-        ) : (
-          <Card>
-            <CardContent className="py-8">
-              <p className="text-center text-muted-foreground">
-                No positions found
-              </p>
-            </CardContent>
-          </Card>
-        )}
-      </div>
+              ),
+              className: "w-48",
+            },
+          ]}
+          view={currentView}
+          renderCard={renderPositionCard}
+          keyExtractor={(position) => position.id}
+          emptyMessage="No positions found"
+        />
+      ) : (
+        <Card>
+          <CardContent className="py-8">
+            <p className="text-center text-muted-foreground">
+              No positions found
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       <PositionDialog
         isOpen={isDialogOpen}
@@ -323,6 +404,7 @@ export default function PositionsPage() {
         onSubmit={selectedPosition ? handleUpdatePosition : handleCreatePosition}
         position={selectedPosition}
         title={selectedPosition ? "Edit Position" : "Create Position"}
+        siteId={selectedSite} // Pass the selectedSite as siteId prop
       />
     </div>
   );
