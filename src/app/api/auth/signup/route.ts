@@ -1,7 +1,8 @@
 import { PrismaClient } from "@prisma/client";
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
+import { EmailService } from "@/lib/email";
 
 const prisma = new PrismaClient();
 
@@ -78,22 +79,34 @@ export async function POST(request: Request) {
         departmentId: defaultDept.id,
         positionId: defaultPosition.id,
       },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        site: {
-          select: {
-            id: true,
-            name: true,
-            code: true,
-          },
-        },
+      include: {
+        site: true,
       },
     });
 
-    return NextResponse.json(user);
+    // Send registration email
+    try {
+      await EmailService.sendRegistrationEmail(user, user.site);
+      console.log(`Registration email sent to ${user.email}`);
+    } catch (emailError) {
+      console.error("Failed to send registration email:", emailError);
+      // Continue with the registration process even if email sending fails
+    }
+
+    // Return only necessary user data in the response
+    const userResponse = {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      site: {
+        id: user.site.id,
+        name: user.site.name,
+        code: user.site.code,
+      },
+    };
+
+    return NextResponse.json(userResponse);
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

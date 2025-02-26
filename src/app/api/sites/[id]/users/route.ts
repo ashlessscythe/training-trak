@@ -1,8 +1,9 @@
 import { getServerSession } from "next-auth/next";
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { hash } from "bcrypt";
+import { EmailService } from "@/lib/email";
 
 export async function GET(
   req: NextRequest,
@@ -106,10 +107,16 @@ export async function POST(
       );
     }
 
-    // Site admins can only create regular users
-    if (currentUser.role === "SITE_ADMIN" && role !== "USER") {
+    // Site admins can only create users with roles below ADMIN (PENDING, USER, SUPERVISOR)
+    if (
+      currentUser.role === "SITE_ADMIN" &&
+      ["ADMIN", "OWNER", "SITE_ADMIN"].includes(role)
+    ) {
       return NextResponse.json(
-        { error: "Site admins can only create regular users" },
+        {
+          error:
+            "Site admins can only create users with roles below admin level",
+        },
         { status: 403 }
       );
     }
@@ -198,13 +205,17 @@ export async function PUT(
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Site admins can't modify other admins
+    // Site admins can only modify users with roles below ADMIN (PENDING, USER, SUPERVISOR)
     if (
       currentUser.role === "SITE_ADMIN" &&
-      (targetUser.role !== "USER" || role !== "USER")
+      (["ADMIN", "OWNER", "SITE_ADMIN"].includes(targetUser.role) ||
+        (role && ["ADMIN", "OWNER", "SITE_ADMIN"].includes(role)))
     ) {
       return NextResponse.json(
-        { error: "Site admins can only modify regular users" },
+        {
+          error:
+            "Site admins can only modify users with roles below admin level",
+        },
         { status: 403 }
       );
     }
@@ -228,10 +239,32 @@ export async function PUT(
       (key) => updateData[key] === undefined && delete updateData[key]
     );
 
+    // Get the user before update to check if role is changing from PENDING
+    const existingUser = await prisma.user.findUnique({
+      where: { id },
+      include: { site: true },
+    });
+
+    if (!existingUser) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
     const user = await prisma.user.update({
       where: { id },
       data: updateData,
+      include: { site: true },
     });
+
+    // If user role is changing from PENDING to another role, send approval email
+    if (existingUser.role === "PENDING" && user.role !== "PENDING") {
+      try {
+        await EmailService.sendAccountApprovalEmail(user, user.site);
+        console.log(`Account approval email sent to ${user.email}`);
+      } catch (emailError) {
+        console.error("Failed to send account approval email:", emailError);
+        // Continue with the update process even if email sending fails
+      }
+    }
 
     return NextResponse.json(user);
   } catch (error: any) {
@@ -292,10 +325,16 @@ export async function DELETE(
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Site admins can't delete other admins
-    if (currentUser.role === "SITE_ADMIN" && targetUser.role !== "USER") {
+    // Site admins can only delete users with roles below ADMIN (PENDING, USER, SUPERVISOR)
+    if (
+      currentUser.role === "SITE_ADMIN" &&
+      ["ADMIN", "OWNER", "SITE_ADMIN"].includes(targetUser.role)
+    ) {
       return NextResponse.json(
-        { error: "Site admins can only delete regular users" },
+        {
+          error:
+            "Site admins can only delete users with roles below admin level",
+        },
         { status: 403 }
       );
     }

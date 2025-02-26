@@ -1,8 +1,9 @@
 import { getServerSession } from "next-auth/next";
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { hash } from "bcrypt";
+import { EmailService } from "@/lib/email";
 
 export async function GET() {
   try {
@@ -188,10 +189,32 @@ export async function PUT(req: NextRequest) {
       (key) => updateData[key] === undefined && delete updateData[key]
     );
 
+    // Get the user before update to check if role is changing from PENDING
+    const existingUser = await prisma.user.findUnique({
+      where: { id },
+      include: { site: true },
+    });
+
+    if (!existingUser) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
     const user = await prisma.user.update({
       where: { id },
       data: updateData,
+      include: { site: true },
     });
+
+    // If user role is changing from PENDING to another role, send approval email
+    if (existingUser.role === "PENDING" && user.role !== "PENDING") {
+      try {
+        await EmailService.sendAccountApprovalEmail(user, user.site);
+        console.log(`Account approval email sent to ${user.email}`);
+      } catch (emailError) {
+        console.error("Failed to send account approval email:", emailError);
+        // Continue with the update process even if email sending fails
+      }
+    }
 
     return NextResponse.json(user);
   } catch (error: any) {
