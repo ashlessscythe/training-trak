@@ -50,11 +50,18 @@ npm install
 3. Set up your environment variables:
 
 ```bash
-# Create a .env file with:
-DATABASE_URL="your-neon-db-url"
-NEXTAUTH_SECRET="your-secret"
-NEXTAUTH_URL="http://localhost:3000"
+# Copy the example environment file and update with your values
+cp .env.example .env
 ```
+
+The `.env.example` file contains all the necessary environment variables with placeholder values. Edit the `.env` file with your actual configuration:
+
+- `NEXT_PUBLIC_APP_NAME`: Your application name
+- `NEXTAUTH_URL`: The base URL of your application (default: "http://localhost:3000")
+- `NEXTAUTH_SECRET`: A secret key for NextAuth.js (at least 32 characters)
+- `DATABASE_URL`: Your database connection string
+
+Never commit your actual `.env` file to version control.
 
 4. Run database migrations:
 
