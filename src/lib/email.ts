@@ -1,6 +1,7 @@
 import { Resend } from "resend";
 import { RegistrationEmail } from "@/components/emails/registration-email";
 import { AccountApprovalEmail } from "@/components/emails/account-approval-email";
+import { AdminNotificationEmail } from "@/components/emails/admin-notification-email";
 import { User, Site } from "@prisma/client";
 import * as React from "react";
 import { siteConfig } from "./config";
@@ -23,16 +24,18 @@ export class EmailService {
    * @returns Promise with the result of the email sending operation
    */
   private static async sendEmail(
-    to: string,
+    to: string | string[],
     subject: string,
-    react: JSX.Element
+    react: JSX.Element,
+    bcc?: string[]
   ) {
     try {
       const { data, error } = await resend.emails.send({
         from: fromEmail,
-        to: [to],
+        to: Array.isArray(to) ? to : [to],
         subject,
         react,
+        bcc: bcc,
       });
 
       if (error) {
@@ -83,6 +86,43 @@ export class EmailService {
         role: user.role,
         loginUrl,
       })
+    );
+  }
+
+  /**
+   * Send a notification email to admins and site admins about a new user registration
+   * @param user Newly registered user object
+   * @param site Site object
+   * @param adminEmails Array of admin email addresses
+   * @returns Promise with the result of the email sending operation
+   */
+  static async sendAdminNotificationEmail(
+    user: User,
+    site: Site,
+    adminEmails: string[]
+  ) {
+    if (adminEmails.length === 0) {
+      console.log("No admin emails provided for notification");
+      return { success: false, error: "No admin emails provided" };
+    }
+
+    const adminDashboardUrl = `${process.env.NEXTAUTH_URL}/admin/users`;
+
+    // Send to the first admin with others in BCC
+    const primaryRecipient = adminEmails[0];
+    const bccRecipients = adminEmails.length > 1 ? adminEmails.slice(1) : [];
+
+    return this.sendEmail(
+      primaryRecipient,
+      `${siteConfig.name} - New User Registration`,
+      React.createElement(AdminNotificationEmail, {
+        userName: user.name,
+        userEmail: user.email,
+        siteName: site.name,
+        siteCode: site.code,
+        adminDashboardUrl,
+      }),
+      bccRecipients
     );
   }
 }

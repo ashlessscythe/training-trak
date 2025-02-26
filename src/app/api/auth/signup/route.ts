@@ -6,6 +6,41 @@ import { EmailService } from "@/lib/email";
 
 const prisma = new PrismaClient();
 
+// Function to get admin and site admin emails
+async function getAdminEmails(siteId: string) {
+  // Get all ADMIN users
+  const adminUsers = await prisma.user.findMany({
+    where: {
+      role: "ADMIN",
+      isActive: true,
+    },
+    select: {
+      email: true,
+    },
+  });
+
+  // Get SITE_ADMIN users for the specific site
+  const siteAdminUsers = await prisma.user.findMany({
+    where: {
+      role: "SITE_ADMIN",
+      siteId: siteId,
+      isActive: true,
+    },
+    select: {
+      email: true,
+    },
+  });
+
+  // Combine and return unique emails
+  const allEmails = [
+    ...adminUsers.map((user) => user.email),
+    ...siteAdminUsers.map((user) => user.email),
+  ];
+
+  // Remove duplicates if any
+  return [...new Set(allEmails)];
+}
+
 export async function POST(request: Request) {
   try {
     const { email, password, name } = await request.json();
@@ -86,13 +121,36 @@ export async function POST(request: Request) {
       },
     });
 
-    // Send registration email
+    // Send registration email to the user
     try {
       await EmailService.sendRegistrationEmail(user, user.site);
       console.log(`Registration email sent to ${user.email}`);
     } catch (emailError) {
       console.error("Failed to send registration email:", emailError);
       // Continue with the registration process even if email sending fails
+    }
+
+    // Send notification to admins and site admins
+    try {
+      const adminEmails = await getAdminEmails(user.siteId);
+      if (adminEmails.length > 0) {
+        await EmailService.sendAdminNotificationEmail(
+          user,
+          user.site,
+          adminEmails
+        );
+        console.log(
+          `Admin notification emails sent to ${adminEmails.length} recipients`
+        );
+      } else {
+        console.log("No admin or site admin users found to notify");
+      }
+    } catch (notificationError) {
+      console.error(
+        "Failed to send admin notification emails:",
+        notificationError
+      );
+      // Continue with the registration process even if notification emails fail
     }
 
     // Return only necessary user data in the response
