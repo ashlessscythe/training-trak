@@ -3,23 +3,56 @@
 import { useEffect, useState } from "react";
 import { Site, Department, Position } from "@prisma/client";
 import { UsersList } from "@/components/users-list";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export default function UsersPage() {
   const [sites, setSites] = useState<Site[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [positions, setPositions] = useState<Position[]>([]);
+  const [selectedSite, setSelectedSite] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
 
+  // Fetch sites
+  useEffect(() => {
+    const fetchSites = async () => {
+      try {
+        const response = await fetch("/api/sites");
+        const data = await response.json();
+        setSites(data);
+      } catch (error) {
+        console.error("Failed to fetch sites:", error);
+      }
+    };
+    fetchSites();
+  }, []);
+
+  // Fetch departments and positions when site is selected
   useEffect(() => {
     const fetchData = async () => {
+      if (!selectedSite) {
+        setDepartments([]);
+        setPositions([]);
+        setIsLoading(false);
+        return;
+      }
+
       try {
-        const [sitesRes, departmentsRes, positionsRes] = await Promise.all([
-          fetch("/api/sites").then((res) => res.json()),
-          fetch("/api/departments").then((res) => res.json()),
-          fetch("/api/positions").then((res) => res.json()),
+        const [departmentsRes, positionsRes] = await Promise.all([
+          fetch(`/api/sites/${selectedSite}/departments`).then((res) =>
+            res.json()
+          ),
+          fetch(`/api/sites/${selectedSite}/positions`).then((res) =>
+            res.json()
+          ),
         ]);
 
-        setSites(sitesRes);
         setDepartments(departmentsRes);
         setPositions(positionsRes);
       } catch (error) {
@@ -30,7 +63,7 @@ export default function UsersPage() {
     };
 
     fetchData();
-  }, []);
+  }, [selectedSite]);
 
   if (isLoading) {
     return (
@@ -41,6 +74,38 @@ export default function UsersPage() {
   }
 
   return (
-    <UsersList sites={sites} departments={departments} positions={positions} />
+    <div className="container mx-auto py-6">
+      <div className="mb-6">
+        <Select value={selectedSite} onValueChange={setSelectedSite}>
+          <SelectTrigger className="w-[250px]">
+            <SelectValue placeholder="Select site" />
+          </SelectTrigger>
+          <SelectContent>
+            {sites.map((site) => (
+              <SelectItem key={site.id} value={site.id}>
+                {site.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {!selectedSite ? (
+        <Card>
+          <CardContent className="py-8">
+            <p className="text-center text-muted-foreground">
+              Please select a site to view users
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <UsersList
+          sites={sites}
+          departments={departments}
+          positions={positions}
+          siteId={selectedSite}
+        />
+      )}
+    </div>
   );
 }

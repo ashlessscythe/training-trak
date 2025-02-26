@@ -33,9 +33,6 @@ const baseNavigation = [
     siteRoles: ["SITE_ADMIN", "SUPERVISOR", "USER"],
   },
 
-  // Admin sections
-  { name: "Admin", href: "/admin", roles: ["OWNER", "ADMIN"] },
-
   // Configuration sections - for OWNER/ADMIN at global level
   {
     name: "Departments",
@@ -51,6 +48,9 @@ const baseNavigation = [
     siteHref: (siteId: string) => `/sites/${siteId}/positions`,
     siteRoles: ["SITE_ADMIN"],
   },
+
+  // Admin sections
+  { name: "Admin", href: "/admin", roles: ["OWNER", "ADMIN"] },
 ];
 
 export function Nav() {

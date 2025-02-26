@@ -13,6 +13,7 @@ interface DepartmentDialogProps {
   onSubmit: (data: any) => Promise<void>;
   department?: Department;
   title: string;
+  siteId?: string;
 }
 
 export function DepartmentDialog({
@@ -21,6 +22,7 @@ export function DepartmentDialog({
   onSubmit,
   department,
   title,
+  siteId,
 }: DepartmentDialogProps) {
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -32,6 +34,7 @@ export function DepartmentDialog({
           onSubmit={onSubmit}
           department={department}
           onCancel={onClose}
+          siteId={siteId}
         />
       </DialogContent>
     </Dialog>

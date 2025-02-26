@@ -7,12 +7,14 @@ interface DepartmentFormProps {
   onSubmit: (data: any) => Promise<void>;
   onCancel: () => void;
   department?: Department;
+  siteId?: string;
 }
 
 export function DepartmentForm({
   onSubmit,
   onCancel,
   department,
+  siteId,
 }: DepartmentFormProps) {
   const [name, setName] = useState(department?.name || "");
   const [description, setDescription] = useState(department?.description || "");
@@ -27,6 +29,7 @@ export function DepartmentForm({
         id: department?.id,
         name,
         description,
+        siteId,
       });
     } catch (error) {
       console.error("Failed to submit department:", error);
