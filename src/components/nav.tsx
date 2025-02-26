@@ -9,11 +9,11 @@ const baseNavigation = [
     href: "/dashboard",
     roles: ["OWNER", "ADMIN", "SITE_ADMIN", "SUPERVISOR", "USER"],
   },
-  
+
   // Main sections
   {
     name: "SOPs",
-    href: "/sops",
+    href: "/admin/sops",
     roles: ["OWNER", "ADMIN"],
     siteHref: (siteId: string) => `/sites/${siteId}/sops`,
     siteRoles: ["SITE_ADMIN", "SUPERVISOR", "USER"],
@@ -27,15 +27,15 @@ const baseNavigation = [
   },
   {
     name: "Documents",
-    href: "/documents",
+    href: "/admin/documents",
     roles: ["OWNER", "ADMIN"],
     siteHref: (siteId: string) => `/sites/${siteId}/documents`,
     siteRoles: ["SITE_ADMIN", "SUPERVISOR", "USER"],
   },
-  
+
   // Admin sections
   { name: "Admin", href: "/admin", roles: ["OWNER", "ADMIN"] },
-  
+
   // Configuration sections - for OWNER/ADMIN at global level
   {
     name: "Departments",
