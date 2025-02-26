@@ -104,6 +104,26 @@ export function UsersList({
       className: "w-48",
     },
     {
+      header: "Shift",
+      accessor: (user: any) => (
+        <div>
+          {user.shift === "FIRST"
+            ? "First Shift"
+            : user.shift === "SECOND"
+            ? "Second Shift"
+            : user.shift === "THIRD"
+            ? "Third Shift"
+            : "N/A"}
+          {user.ssoId && (
+            <div className="text-sm text-muted-foreground">
+              SSO ID: {user.ssoId}
+            </div>
+          )}
+        </div>
+      ),
+      className: "w-36",
+    },
+    {
       header: "Training",
       accessor: (user: any) => {
         const stats = getUserStats(user);
@@ -229,6 +249,24 @@ export function UsersList({
                   <dt className="inline text-muted-foreground">Position:</dt>
                   <dd className="inline ml-1">{user.position.name}</dd>
                 </div>
+                <div>
+                  <dt className="inline text-muted-foreground">Shift:</dt>
+                  <dd className="inline ml-1">
+                    {user.shift === "FIRST"
+                      ? "First Shift"
+                      : user.shift === "SECOND"
+                      ? "Second Shift"
+                      : user.shift === "THIRD"
+                      ? "Third Shift"
+                      : "N/A"}
+                  </dd>
+                </div>
+                {user.ssoId && (
+                  <div>
+                    <dt className="inline text-muted-foreground">SSO ID:</dt>
+                    <dd className="inline ml-1">{user.ssoId}</dd>
+                  </div>
+                )}
                 {!siteId && (
                   <div>
                     <dt className="inline text-muted-foreground">Role:</dt>
@@ -295,6 +333,7 @@ export function UsersList({
                     site: "ALL",
                     department: "ALL",
                     position: "ALL",
+                    shift: "ALL",
                     active: "ALL",
                   });
                   setSortBy("name");
@@ -400,6 +439,21 @@ export function UsersList({
           </Select>
 
           <Select
+            value={filters.shift || "ALL"}
+            onValueChange={(value) => setFilters({ ...filters, shift: value })}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Filter by shift" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">All Shifts</SelectItem>
+              <SelectItem value="FIRST">First Shift</SelectItem>
+              <SelectItem value="SECOND">Second Shift</SelectItem>
+              <SelectItem value="THIRD">Third Shift</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select
             value={filters.active || "ALL"}
             onValueChange={(value) =>
               setFilters({
@@ -429,6 +483,7 @@ export function UsersList({
                 {!siteId && <SelectItem value="site">Site</SelectItem>}
                 <SelectItem value="department">Department</SelectItem>
                 <SelectItem value="position">Position</SelectItem>
+                <SelectItem value="shift">Shift</SelectItem>
                 <SelectItem value="createdAt">Date Created</SelectItem>
               </SelectContent>
             </Select>

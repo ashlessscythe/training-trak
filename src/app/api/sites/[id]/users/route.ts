@@ -97,8 +97,17 @@ export async function POST(
     }
 
     const data = await req.json();
-    const { email, name, password, role, departmentId, positionId, siteId } =
-      data;
+    const {
+      email,
+      name,
+      password,
+      role,
+      departmentId,
+      positionId,
+      siteId,
+      shift,
+      ssoId,
+    } = data;
 
     // Validate required fields
     if (!email || !name || !password || !role || !departmentId || !positionId) {
@@ -137,6 +146,8 @@ export async function POST(
         siteId: userSiteId,
         departmentId,
         positionId,
+        shift,
+        ssoId,
         isActive: true,
       },
     });
@@ -191,6 +202,8 @@ export async function PUT(
       isActive,
       password,
       siteId,
+      shift,
+      ssoId,
     } = data;
 
     if (!id) {
@@ -232,6 +245,8 @@ export async function PUT(
       departmentId,
       positionId,
       isActive,
+      shift,
+      ssoId,
       // Use the siteId from the request body if provided, otherwise don't change it
       ...(siteId && { siteId }),
     };

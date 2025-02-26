@@ -83,8 +83,17 @@ export async function POST(req: NextRequest) {
     }
 
     const data = await req.json();
-    const { email, name, password, role, siteId, departmentId, positionId } =
-      data;
+    const {
+      email,
+      name,
+      password,
+      role,
+      siteId,
+      departmentId,
+      positionId,
+      shift,
+      ssoId,
+    } = data;
 
     // Validate required fields
     if (
@@ -114,6 +123,8 @@ export async function POST(req: NextRequest) {
         siteId,
         departmentId,
         positionId,
+        shift,
+        ssoId,
         isActive: true,
       },
     });
@@ -160,6 +171,8 @@ export async function PUT(req: NextRequest) {
       positionId,
       isActive,
       password,
+      shift,
+      ssoId,
     } = data;
 
     if (!id) {
@@ -177,6 +190,8 @@ export async function PUT(req: NextRequest) {
       departmentId,
       positionId,
       isActive,
+      shift,
+      ssoId,
     };
 
     // Only update password if provided

@@ -66,6 +66,8 @@ model User {
   id           String     @id @default(cuid())
   email        String     @unique
   name         String
+  ssoId        String?    
+  shift        Shift?     @default(FIRST)
   password     String // Hashed password
   isActive     Boolean    @default(true)
   site         Site       @relation(fields: [siteId], references: [id])
@@ -89,6 +91,12 @@ model User {
   @@index([siteId])
   @@index([departmentId])
   @@index([positionId])
+}
+
+enum Shift {
+  FIRST
+  SECOND
+  THIRD
 }
 
 // SOP model with versioning

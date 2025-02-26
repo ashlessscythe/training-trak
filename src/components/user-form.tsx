@@ -16,6 +16,8 @@ interface UserFormProps {
     positionId: string;
     isActive?: boolean;
     id?: string;
+    shift?: string;
+    ssoId?: string;
   }) => Promise<void>;
   initialData?: {
     id: string;
@@ -26,6 +28,8 @@ interface UserFormProps {
     departmentId: string;
     positionId: string;
     isActive: boolean;
+    shift?: string;
+    ssoId?: string;
   };
   onCancel: () => void;
   onSiteChange?: (siteId: string) => Promise<void>;
@@ -49,6 +53,8 @@ export function UserForm({
     departmentId: initialData?.departmentId || "",
     positionId: initialData?.positionId || "",
     isActive: initialData?.isActive ?? true,
+    shift: initialData?.shift || "FIRST",
+    ssoId: initialData?.ssoId || "",
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -202,6 +208,35 @@ export function UserForm({
               </option>
             ))}
         </select>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium mb-1">Shift</label>
+        <select
+          value={formData.shift}
+          onChange={(e) =>
+            setFormData((prev) => ({ ...prev, shift: e.target.value }))
+          }
+          className="w-full p-2 border rounded-md"
+        >
+          <option value="FIRST">First Shift</option>
+          <option value="SECOND">Second Shift</option>
+          <option value="THIRD">Third Shift</option>
+        </select>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium mb-1">
+          SSO ID (Optional)
+        </label>
+        <input
+          type="text"
+          value={formData.ssoId || ""}
+          onChange={(e) =>
+            setFormData((prev) => ({ ...prev, ssoId: e.target.value }))
+          }
+          className="w-full p-2 border rounded-md"
+        />
       </div>
 
       {initialData && (

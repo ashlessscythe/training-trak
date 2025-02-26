@@ -78,6 +78,8 @@ export async function POST(request: Request) {
         role: "PENDING",
         departmentId: defaultDept.id,
         positionId: defaultPosition.id,
+        shift: "FIRST", // Default to FIRST shift
+        ssoId: null, // Default to null for ssoId
       },
       include: {
         site: true,

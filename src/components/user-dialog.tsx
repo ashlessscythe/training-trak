@@ -48,6 +48,22 @@ export function UserDialog({
     }
   };
 
+  // Transform user data to match the expected format for UserForm
+  const transformedUserData = user
+    ? {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        siteId: user.siteId,
+        departmentId: user.departmentId,
+        positionId: user.positionId,
+        isActive: user.isActive,
+        shift: user.shift ? user.shift.toString() : undefined,
+        ssoId: user.ssoId || undefined,
+      }
+    : undefined;
+
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent>
@@ -59,7 +75,7 @@ export function UserDialog({
           departments={departments}
           positions={positions}
           onSubmit={onSubmit}
-          initialData={user}
+          initialData={transformedUserData}
           onCancel={onClose}
           onSiteChange={handleSiteChange}
         />

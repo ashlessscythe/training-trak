@@ -11,8 +11,9 @@ export const BaseEmail: React.FC<Readonly<BaseEmailProps>> = ({
   title,
 }) => (
   <html>
-    <head>
-      <title>{title}</title>
+    {/* Use a div instead of head to avoid Next.js warnings */}
+    <div className="email-head">
+      {/* Title would normally be in head but for email templates it's fine in a div */}
       <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       <style>
         {`
@@ -84,7 +85,7 @@ export const BaseEmail: React.FC<Readonly<BaseEmailProps>> = ({
           }
         `}
       </style>
-    </head>
+    </div>
     <body>
       <div className="container">
         <div className="header">

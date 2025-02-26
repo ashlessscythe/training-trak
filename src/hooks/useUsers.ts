@@ -8,6 +8,7 @@ interface UserFilters {
   site: string | "ALL";
   department: string | "ALL";
   position: string | "ALL";
+  shift: string | "ALL";
   active: "ALL" | "ACTIVE" | "INACTIVE";
 }
 
@@ -73,6 +74,12 @@ export function useUsers({
           return user.position.id === value;
         },
       },
+      shift: {
+        predicate: (user: UserWithRelations, value: string | "ALL") => {
+          if (value === "ALL") return true;
+          return user.shift === value;
+        },
+      },
       active: {
         predicate: (
           user: UserWithRelations,
@@ -116,6 +123,11 @@ export function useUsers({
           predicate: filterConfig.position.predicate,
         },
         {
+          key: "shift" as keyof UserFilters,
+          value: "ALL",
+          predicate: filterConfig.shift.predicate,
+        },
+        {
           key: "active" as keyof UserFilters,
           value: "ALL",
           predicate: filterConfig.active.predicate,
@@ -141,6 +153,10 @@ export function useUsers({
         {
           key: "position",
           getValue: (user: UserWithRelations) => user.position.name,
+        },
+        {
+          key: "shift",
+          getValue: (user: UserWithRelations) => user.shift || "",
         },
         {
           key: "createdAt",
