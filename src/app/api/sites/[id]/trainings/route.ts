@@ -1,5 +1,5 @@
 import { getServerSession } from "next-auth/next";
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
@@ -33,7 +33,7 @@ export async function GET(
 
     // Get userId from query params if present
     const { searchParams } = new URL(req.url);
-    const userId = searchParams.get('userId');
+    const userId = searchParams.get("userId");
 
     const trainings = await prisma.trainingProgress.findMany({
       where: {
@@ -49,6 +49,12 @@ export async function GET(
           select: {
             name: true,
             siteId: true,
+            department: {
+              select: {
+                name: true,
+                id: true,
+              },
+            },
           },
         },
         sop: {
@@ -146,6 +152,12 @@ export async function POST(
               select: {
                 name: true,
                 siteId: true,
+                department: {
+                  select: {
+                    name: true,
+                    id: true,
+                  },
+                },
               },
             },
             sop: {
@@ -258,6 +270,12 @@ export async function PUT(
           select: {
             name: true,
             siteId: true,
+            department: {
+              select: {
+                name: true,
+                id: true,
+              },
+            },
           },
         },
         sop: {

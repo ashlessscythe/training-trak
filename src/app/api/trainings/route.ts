@@ -1,5 +1,5 @@
 import { getServerSession } from "next-auth/next";
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
@@ -25,6 +25,12 @@ export async function GET() {
           select: {
             name: true,
             siteId: true,
+            department: {
+              select: {
+                name: true,
+                id: true,
+              },
+            },
           },
         },
         sop: {
@@ -134,6 +140,12 @@ export async function PUT(req: NextRequest) {
           select: {
             name: true,
             siteId: true,
+            department: {
+              select: {
+                name: true,
+                id: true,
+              },
+            },
           },
         },
         sop: {
