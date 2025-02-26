@@ -199,6 +199,8 @@ async function main() {
     siteId: string;
     createdAt: Date;
     updatedAt: Date;
+    departmentId?: string;
+    positionId?: string;
   }> = [];
 
   // Create joe as siteadmin
@@ -231,15 +233,44 @@ async function main() {
   });
   users.push(defaultAdmin);
 
+  // Create one site admin per site (except for default site which already has joe)
+  for (const site of sites) {
+    // Skip the default site as it already has a site admin (joe)
+    if (site.id === sites[0].id) continue;
+
+    // Filter departments and positions for this site
+    const siteDepartments = departments.filter(
+      (dept) => dept.siteId === site.id
+    );
+    const sitePositions = positions.filter((pos) => pos.siteId === site.id);
+
+    // Create one site admin for this site
+    const siteAdmin = await prisma.user.create({
+      data: {
+        email: useFaker
+          ? faker.internet.email().toLowerCase()
+          : `siteadmin@${site.code.toLowerCase()}.com`,
+        name: useFaker ? faker.person.fullName() : `Site Admin ${site.code}`,
+        password: await bcrypt.hash(ROLE_PASSWORDS["SITE_ADMIN"], 10),
+        role: "SITE_ADMIN",
+        isActive: true,
+        siteId: site.id,
+        departmentId: faker.helpers.arrayElement(siteDepartments).id,
+        positionId: faker.helpers.arrayElement(sitePositions).id,
+      },
+    });
+    users.push(siteAdmin);
+  }
+
   // Create other users
   for (const site of sites) {
-    const roles: Role[] = [
-      "OWNER",
-      "ADMIN",
-      "SITE_ADMIN",
-      "SUPERVISOR",
-      "USER",
-    ];
+    // Filter departments and positions for this site
+    const siteDepartments = departments.filter(
+      (dept) => dept.siteId === site.id
+    );
+    const sitePositions = positions.filter((pos) => pos.siteId === site.id);
+
+    const roles: Role[] = ["OWNER", "ADMIN", "SUPERVISOR", "USER"];
     for (const role of roles) {
       // Skip creating another admin for the default site
       if (site.id === sites[0].id && role === "ADMIN") continue;
@@ -256,8 +287,8 @@ async function main() {
           role,
           isActive: true,
           siteId: site.id,
-          departmentId: faker.helpers.arrayElement(departments).id,
-          positionId: faker.helpers.arrayElement(positions).id,
+          departmentId: faker.helpers.arrayElement(siteDepartments).id,
+          positionId: faker.helpers.arrayElement(sitePositions).id,
         },
       });
       users.push(user);
@@ -277,6 +308,7 @@ async function main() {
     createdAt: Date;
     updatedAt: Date;
     category: string;
+    siteId: string;
   }
 
   // Define SOP categories that align with department types
@@ -313,36 +345,44 @@ async function main() {
     ],
   };
 
-  // Create SOPs with categories
+  // Create SOPs with categories for each site
   const sops: SOPWithCategory[] = [];
-  for (const [category, procedures] of Object.entries(sopCategories)) {
-    for (const procedure of procedures) {
-      const createdBy = faker.helpers.arrayElement(users);
-      const lastModifiedBy = faker.helpers.arrayElement(users);
+  for (const site of sites) {
+    // Get users for this site
+    const siteUsers = users.filter((user) => user.siteId === site.id);
 
-      const sop = await prisma.sOP.create({
-        data: {
-          name: `${procedure} SOP`,
-          description: `Standard Operating Procedure for ${procedure}`,
-          version: `${faker.number.int({ min: 1, max: 5 })}.${faker.number.int({
-            min: 0,
-            max: 9,
-          })}`,
-          content: useFaker ? faker.lorem.paragraphs(3) : "Sample content",
-          isActive: true,
-          createdById: createdBy.id,
-          lastModifiedById: lastModifiedBy.id,
-          requiredRoles: faker.helpers.arrayElements(
-            ["SUPERVISOR", "USER"],
-            faker.number.int({ min: 1, max: 2 })
-          ),
-        },
-      });
-      sops.push({ ...sop, category });
+    for (const [category, procedures] of Object.entries(sopCategories)) {
+      for (const procedure of procedures) {
+        const createdBy = faker.helpers.arrayElement(siteUsers);
+        const lastModifiedBy = faker.helpers.arrayElement(siteUsers);
+
+        const sop = await prisma.sOP.create({
+          data: {
+            name: `${site.code} - ${procedure} SOP`,
+            description: `Standard Operating Procedure for ${procedure} at ${site.name}`,
+            version: `${faker.number.int({
+              min: 1,
+              max: 5,
+            })}.${faker.number.int({
+              min: 0,
+              max: 9,
+            })}`,
+            content: useFaker ? faker.lorem.paragraphs(3) : "Sample content",
+            isActive: true,
+            createdById: createdBy.id,
+            lastModifiedById: lastModifiedBy.id,
+            requiredRoles: faker.helpers.arrayElements(
+              ["SUPERVISOR", "USER"],
+              faker.number.int({ min: 1, max: 2 })
+            ),
+          },
+        });
+        sops.push({ ...sop, category, siteId: site.id });
+      }
     }
   }
 
-  // Assign SOPs to positions based on department type
+  // Assign SOPs to positions based on department type and site
   for (const position of positions) {
     // Skip the default position
     if (position.name === "DEFAULT_POSITION") continue;
@@ -353,26 +393,34 @@ async function main() {
     );
 
     if (relevantCategories.length > 0) {
-      // Get SOPs from relevant categories
-      const relevantSops = sops.filter((sop) =>
-        relevantCategories.includes(sop.category)
+      // Get SOPs from relevant categories that belong to the same site as the position
+      const relevantSops = sops.filter(
+        (sop) =>
+          relevantCategories.includes(sop.category) &&
+          sop.siteId === position.siteId
       );
 
-      // Select 2-4 random SOPs from relevant ones
-      const selectedSops = faker.helpers.arrayElements(
-        relevantSops,
-        faker.number.int({ min: 2, max: 4 })
-      );
+      if (relevantSops.length > 0) {
+        // Select 2-4 random SOPs from relevant ones (or all if less than 2)
+        const numToSelect = Math.min(
+          faker.number.int({ min: 2, max: 4 }),
+          relevantSops.length
+        );
+        const selectedSops = faker.helpers.arrayElements(
+          relevantSops,
+          numToSelect
+        );
 
-      // Update position with selected SOPs
-      await prisma.position.update({
-        where: { id: position.id },
-        data: {
-          sops: {
-            connect: selectedSops.map((sop) => ({ id: sop.id })),
+        // Update position with selected SOPs
+        await prisma.position.update({
+          where: { id: position.id },
+          data: {
+            sops: {
+              connect: selectedSops.map((sop) => ({ id: sop.id })),
+            },
           },
-        },
-      });
+        });
+      }
     }
   }
 
@@ -386,8 +434,16 @@ async function main() {
 
   const documents = await Promise.all(
     Array.from({ length: count * 5 }, async () => {
-      const uploadedBy = faker.helpers.arrayElement(users);
-      const sop = faker.helpers.arrayElement(sops);
+      // Select a random site
+      const site = faker.helpers.arrayElement(sites);
+      // Get users for this site
+      const siteUsers = users.filter((user) => user.siteId === site.id);
+      // Get SOPs for this site
+      const siteSops = sops.filter((sop) => sop.siteId === site.id);
+
+      const uploadedBy = faker.helpers.arrayElement(siteUsers);
+      const sop =
+        siteSops.length > 0 ? faker.helpers.arrayElement(siteSops) : null;
       const type = faker.helpers.arrayElement(documentTypes);
 
       // Generate a descriptive name with extension
@@ -433,7 +489,7 @@ async function main() {
               faker.number.int({ min: 1, max: 3 })
             ),
           },
-          sopId: type === "SOP_DOCUMENT" ? sop.id : null,
+          sopId: type === "SOP_DOCUMENT" && sop ? sop.id : null,
           uploadedById: uploadedBy.id,
         },
       });
@@ -450,18 +506,32 @@ async function main() {
 
   await Promise.all(
     Array.from({ length: count * 3 }, async () => {
-      const user = faker.helpers.arrayElement(users);
-      const sop = faker.helpers.arrayElement(sops);
+      // Select a random site
+      const site = faker.helpers.arrayElement(sites);
+      // Get users for this site
+      const siteUsers = users.filter((user) => user.siteId === site.id);
+      // Get SOPs for this site
+      const siteSops = sops.filter((sop) => sop.siteId === site.id);
+
+      // Skip if no users or SOPs for this site
+      if (siteUsers.length === 0 || siteSops.length === 0) {
+        return null;
+      }
+
+      const user = faker.helpers.arrayElement(siteUsers);
+      const sop = faker.helpers.arrayElement(siteSops);
       const status = faker.helpers.arrayElement(trainingStatuses);
       const completedAt =
         status !== "IN_PROGRESS" ? faker.date.past() : undefined;
+
+      // Get approvers from the same site
+      const siteApprovers = siteUsers.filter((u) =>
+        ["OWNER", "ADMIN", "SUPERVISOR", "SITE_ADMIN"].includes(u.role)
+      );
+
       const approvedBy =
-        status === "APPROVED"
-          ? faker.helpers.arrayElement(
-              users.filter((u) =>
-                ["OWNER", "ADMIN", "SUPERVISOR"].includes(u.role)
-              )
-            )
+        status === "APPROVED" && siteApprovers.length > 0
+          ? faker.helpers.arrayElement(siteApprovers)
           : undefined;
 
       return prisma.trainingProgress.create({
