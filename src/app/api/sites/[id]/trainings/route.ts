@@ -38,12 +38,8 @@ export async function GET(
     const trainings = await prisma.trainingProgress.findMany({
       where: {
         AND: [
-          {
-            OR: [
-              { user: { siteId: params.id } },
-              { sop: { createdBy: { siteId: params.id } } },
-            ],
-          },
+          // Only show trainings where the user belongs to this site
+          { user: { siteId: params.id } },
           // Add userId filter if provided
           ...(userId ? [{ userId }] : []),
         ],
