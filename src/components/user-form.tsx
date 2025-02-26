@@ -28,6 +28,7 @@ interface UserFormProps {
     isActive: boolean;
   };
   onCancel: () => void;
+  onSiteChange?: (siteId: string) => Promise<void>;
 }
 
 export function UserForm({
@@ -37,6 +38,7 @@ export function UserForm({
   onSubmit,
   initialData,
   onCancel,
+  onSiteChange,
 }: UserFormProps) {
   const [formData, setFormData] = useState({
     email: initialData?.email || "",
@@ -135,7 +137,7 @@ export function UserForm({
         <select
           required
           value={formData.siteId}
-          onChange={(e) => {
+          onChange={async (e) => {
             const newSiteId = e.target.value;
             setFormData((prev) => ({
               ...prev,
@@ -143,6 +145,11 @@ export function UserForm({
               departmentId: "",
               positionId: "",
             }));
+
+            // Call the onSiteChange callback if provided
+            if (onSiteChange && newSiteId) {
+              await onSiteChange(newSiteId);
+            }
           }}
           className="w-full p-2 border rounded-md"
         >

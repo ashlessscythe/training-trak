@@ -101,11 +101,13 @@ export default async function DashboardPage() {
               {metrics.completedTrainings} / {metrics.totalTrainings}
             </p>
             <p className="text-sm text-muted-foreground">
-              {(
-                (metrics.completedTrainings / metrics.totalTrainings) *
-                100
-              ).toFixed(1)}
-              % Complete
+              {metrics.totalTrainings
+                ? (
+                    ((metrics.completedTrainings ?? 0) /
+                      metrics.totalTrainings) *
+                    100
+                  ).toFixed(1) + "%"
+                : "-"}
             </p>
           </CardContent>
         </Card>

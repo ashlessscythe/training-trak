@@ -461,7 +461,7 @@ export function UsersList({
           setSelectedUser(undefined);
         }}
         onSubmit={selectedUser ? handleUpdate : handleCreate}
-        sites={siteId ? [sites.find((s) => s.id === siteId)!] : sites}
+        sites={sites}
         departments={departments}
         positions={positions}
         user={selectedUser}

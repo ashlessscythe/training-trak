@@ -19,42 +19,40 @@ export default function UsersPage() {
   const [selectedSite, setSelectedSite] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
 
-  // Fetch sites
-  useEffect(() => {
-    const fetchSites = async () => {
-      try {
-        const response = await fetch("/api/sites");
-        const data = await response.json();
-        setSites(data);
-      } catch (error) {
-        console.error("Failed to fetch sites:", error);
-      }
-    };
-    fetchSites();
-  }, []);
-
-  // Fetch departments and positions when site is selected
+  // Fetch sites, departments, and positions
   useEffect(() => {
     const fetchData = async () => {
-      if (!selectedSite) {
-        setDepartments([]);
-        setPositions([]);
-        setIsLoading(false);
-        return;
-      }
-
       try {
-        const [departmentsRes, positionsRes] = await Promise.all([
-          fetch(`/api/sites/${selectedSite}/departments`).then((res) =>
-            res.json()
-          ),
-          fetch(`/api/sites/${selectedSite}/positions`).then((res) =>
-            res.json()
-          ),
-        ]);
+        setIsLoading(true);
 
-        setDepartments(departmentsRes);
-        setPositions(positionsRes);
+        // Always fetch all sites
+        const sitesResponse = await fetch("/api/sites");
+        const sitesData = await sitesResponse.json();
+        setSites(sitesData);
+
+        if (!selectedSite) {
+          // Fetch all departments and positions when no site is selected
+          const [allDepartmentsRes, allPositionsRes] = await Promise.all([
+            fetch(`/api/departments`).then((res) => res.json()),
+            fetch(`/api/positions`).then((res) => res.json()),
+          ]);
+
+          setDepartments(allDepartmentsRes);
+          setPositions(allPositionsRes);
+        } else {
+          // Fetch departments and positions for the selected site
+          const [departmentsRes, positionsRes] = await Promise.all([
+            fetch(`/api/sites/${selectedSite}/departments`).then((res) =>
+              res.json()
+            ),
+            fetch(`/api/sites/${selectedSite}/positions`).then((res) =>
+              res.json()
+            ),
+          ]);
+
+          setDepartments(departmentsRes);
+          setPositions(positionsRes);
+        }
       } catch (error) {
         console.error("Failed to fetch data:", error);
       } finally {

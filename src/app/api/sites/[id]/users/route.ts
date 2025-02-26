@@ -97,7 +97,8 @@ export async function POST(
     }
 
     const data = await req.json();
-    const { email, name, password, role, departmentId, positionId } = data;
+    const { email, name, password, role, departmentId, positionId, siteId } =
+      data;
 
     // Validate required fields
     if (!email || !name || !password || !role || !departmentId || !positionId) {
@@ -124,13 +125,16 @@ export async function POST(
     // Hash password
     const hashedPassword = await hash(password, 10);
 
+    // Use the siteId from the request body if provided, otherwise use the site ID from the URL
+    const userSiteId = siteId || params.id;
+
     const user = await prisma.user.create({
       data: {
         email,
         name,
         password: hashedPassword,
         role,
-        siteId: params.id,
+        siteId: userSiteId,
         departmentId,
         positionId,
         isActive: true,
@@ -186,6 +190,7 @@ export async function PUT(
       positionId,
       isActive,
       password,
+      siteId,
     } = data;
 
     if (!id) {
@@ -227,6 +232,8 @@ export async function PUT(
       departmentId,
       positionId,
       isActive,
+      // Use the siteId from the request body if provided, otherwise don't change it
+      ...(siteId && { siteId }),
     };
 
     // Only update password if provided
