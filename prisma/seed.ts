@@ -5,6 +5,7 @@ import {
   TrainingStatus,
   Department,
   Position,
+  Shift,
 } from "@prisma/client";
 import { faker } from "@faker-js/faker";
 import yargs from "yargs/yargs";
@@ -203,40 +204,76 @@ async function main() {
     positionId?: string;
   }> = [];
 
-  // Create joe as siteadmin
-  const defaultSiteAdmin = await prisma.user.create({
-    data: {
-      email: "joe@joe.joe",
-      name: "Joe Admin",
-      password: await bcrypt.hash("sapass", 10),
-      role: "SITE_ADMIN",
-      isActive: true,
-      siteId: sites[0].id,
-      departmentId: defaultDepartment.id,
-      positionId: defaultPosition.id,
-    },
-  });
-  users.push(defaultSiteAdmin);
-
-  // bob as superadmin
+  // Create admin for default site
   const defaultAdmin = await prisma.user.create({
     data: {
-      email: "bob@bob.bob",
-      name: "Bob Admin",
+      email: "admin@admin.admin",
+      name: "System Admin",
       password: await bcrypt.hash("adminpass", 10),
       role: "ADMIN",
       isActive: true,
       siteId: sites[0].id,
       departmentId: defaultDepartment.id,
       positionId: defaultPosition.id,
+      ssoId: generateRandomSsoId(),
+      shift: getRandomShift(),
     },
   });
   users.push(defaultAdmin);
 
-  // Create one site admin per site (except for default site which already has joe)
+  // Create joe as siteadmin for first non-default site
+  if (sites.length > 1) {
+    const firstNonDefaultSite = sites[1];
+    // Filter departments and positions for this site
+    const siteDepartments = departments.filter(
+      (dept) => dept.siteId === firstNonDefaultSite.id
+    );
+    const sitePositions = positions.filter(
+      (pos) => pos.siteId === firstNonDefaultSite.id
+    );
+
+    const joeSiteAdmin = await prisma.user.create({
+      data: {
+        email: "joe@joe.joe",
+        name: "Joe Admin",
+        password: await bcrypt.hash("sapass", 10),
+        role: "SITE_ADMIN",
+        isActive: true,
+        siteId: firstNonDefaultSite.id,
+        departmentId: faker.helpers.arrayElement(siteDepartments).id,
+        positionId: faker.helpers.arrayElement(sitePositions).id,
+        ssoId: generateRandomSsoId(),
+        shift: getRandomShift(),
+      },
+    });
+    users.push(joeSiteAdmin);
+
+    // bob as admin for first non-default site
+    const bobAdmin = await prisma.user.create({
+      data: {
+        email: "bob@bob.bob",
+        name: "Bob Admin",
+        password: await bcrypt.hash("adminpass", 10),
+        role: "ADMIN",
+        isActive: true,
+        siteId: firstNonDefaultSite.id,
+        departmentId: faker.helpers.arrayElement(siteDepartments).id,
+        positionId: faker.helpers.arrayElement(sitePositions).id,
+        ssoId: generateRandomSsoId(),
+        shift: getRandomShift(),
+      },
+    });
+    users.push(bobAdmin);
+  }
+
+  // Create one site admin per site (except for default site and first non-default site which already has joe)
   for (const site of sites) {
-    // Skip the default site as it already has a site admin (joe)
-    if (site.id === sites[0].id) continue;
+    // Skip the default site and first non-default site
+    if (
+      site.id === sites[0].id ||
+      (sites.length > 1 && site.id === sites[1].id)
+    )
+      continue;
 
     // Filter departments and positions for this site
     const siteDepartments = departments.filter(
@@ -257,13 +294,18 @@ async function main() {
         siteId: site.id,
         departmentId: faker.helpers.arrayElement(siteDepartments).id,
         positionId: faker.helpers.arrayElement(sitePositions).id,
+        ssoId: generateRandomSsoId(),
+        shift: getRandomShift(),
       },
     });
     users.push(siteAdmin);
   }
 
-  // Create other users
+  // Create other users (skip default site)
   for (const site of sites) {
+    // Skip the default site - only admin user there
+    if (site.id === sites[0].id) continue;
+
     // Filter departments and positions for this site
     const siteDepartments = departments.filter(
       (dept) => dept.siteId === site.id
@@ -272,8 +314,9 @@ async function main() {
 
     const roles: Role[] = ["OWNER", "ADMIN", "SUPERVISOR", "USER"];
     for (const role of roles) {
-      // Skip creating another admin for the default site
-      if (site.id === sites[0].id && role === "ADMIN") continue;
+      // Skip creating another admin for the first non-default site if it already has bob
+      if (sites.length > 1 && site.id === sites[1].id && role === "ADMIN")
+        continue;
 
       const user = await prisma.user.create({
         data: {
@@ -289,6 +332,8 @@ async function main() {
           siteId: site.id,
           departmentId: faker.helpers.arrayElement(siteDepartments).id,
           positionId: faker.helpers.arrayElement(sitePositions).id,
+          ssoId: generateRandomSsoId(),
+          shift: getRandomShift(),
         },
       });
       users.push(user);
@@ -563,6 +608,16 @@ async function main() {
 - ${sops.length} SOPs
 - ${documents.length} documents
 - ${count * 3} training progress records`);
+}
+
+// Helper function to generate a random 6-digit SSOID
+function generateRandomSsoId(): string {
+  return faker.string.numeric(6);
+}
+
+// Helper function to get a random shift
+function getRandomShift(): Shift {
+  return faker.helpers.arrayElement([Shift.FIRST, Shift.SECOND, Shift.THIRD]);
 }
 
 main()
