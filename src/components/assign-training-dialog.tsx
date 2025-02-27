@@ -184,12 +184,20 @@ export function AssignTrainingDialog({
                             Already assigned
                           </span>
                         )}
-                        {!assignedSOPs.has(sop.id) &&
-                          requiredSOPs.has(sop.id) && (
-                            <span className="text-xs bg-yellow-100 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-300 px-2 py-0.5 rounded-full ml-auto">
-                              Required by position
-                            </span>
-                          )}
+                        {!assignedSOPs.has(sop.id) && (
+                          <>
+                            {requiredSOPs.has(sop.id) && (
+                              <span className="text-xs bg-yellow-100 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-300 px-2 py-0.5 rounded-full ml-auto">
+                                Required by position
+                              </span>
+                            )}
+                            {sop.isCritical && (
+                              <span className="text-xs bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 px-2 py-0.5 rounded-full ml-1">
+                                Critical
+                              </span>
+                            )}
+                          </>
+                        )}
                       </label>
                     </div>
                   ))}

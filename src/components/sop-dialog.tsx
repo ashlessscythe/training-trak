@@ -15,7 +15,7 @@ interface SOPDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (data: any) => Promise<void>;
-  sop?: SOP & { positions?: Position[] };
+  sop?: SOP & { positions?: Position[]; isCritical?: boolean };
   title: string;
 }
 
@@ -48,6 +48,7 @@ export function SOPDialog({
                   requiredRoles: sop.requiredRoles,
                   positions: sop.positions || [],
                   isActive: sop.isActive,
+                  isCritical: sop.isCritical,
                 }
               : undefined
           }

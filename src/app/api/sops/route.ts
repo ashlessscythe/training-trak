@@ -1,5 +1,5 @@
 import { getServerSession } from "next-auth/next";
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
@@ -110,7 +110,8 @@ export async function POST(req: NextRequest) {
     }
 
     const data = await req.json();
-    const { name, description, version, content, requiredRoles } = data;
+    const { name, description, version, content, requiredRoles, isCritical } =
+      data;
 
     // Validate required fields
     if (!name || !version) {
@@ -127,6 +128,7 @@ export async function POST(req: NextRequest) {
         version,
         content,
         requiredRoles,
+        isCritical: isCritical || false,
         isActive: true,
         createdById: currentUser.id,
         lastModifiedById: currentUser.id,
@@ -197,8 +199,16 @@ export async function PUT(req: NextRequest) {
     }
 
     const data = await req.json();
-    const { id, name, description, version, content, requiredRoles, isActive } =
-      data;
+    const {
+      id,
+      name,
+      description,
+      version,
+      content,
+      requiredRoles,
+      isActive,
+      isCritical,
+    } = data;
 
     if (!id) {
       return NextResponse.json(
@@ -245,6 +255,7 @@ export async function PUT(req: NextRequest) {
       content,
       requiredRoles,
       isActive,
+      isCritical,
       lastModifiedById: currentUser.id,
     };
 

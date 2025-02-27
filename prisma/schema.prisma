@@ -108,6 +108,7 @@ model SOP {
   version          String
   content          String? // Could be a URL or content
   isActive         Boolean            @default(true)
+  isCritical       Boolean?           @default(false)
   createdBy        User               @relation("SOPCreator", fields: [createdById], references: [id])
   createdById      String
   lastModifiedBy   User               @relation("SOPLastModifier", fields: [lastModifiedById], references: [id])

@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Role } from "@prisma/client";
+import { Role, SOP } from "@prisma/client";
 import { SOPDialog } from "@/components/sop-dialog";
 import {
   Select,
@@ -58,10 +58,31 @@ export function SOPsList({
     );
   }
 
+  // Define the type to match what comes from the API
+  type SOPWithRelations = SOP & {
+    createdBy: {
+      name: string;
+      email?: string;
+      siteId?: string;
+    };
+    lastModifiedBy: {
+      name: string;
+      email?: string;
+      siteId?: string;
+    };
+    positions?: {
+      id: string;
+      name: string;
+      isActive: boolean;
+    }[];
+    // Ensure isCritical matches the schema definition (boolean | null)
+    isCritical: boolean | null;
+  };
+
   const columns = [
     {
       header: "Name",
-      accessor: (sop: any) => (
+      accessor: (sop: SOPWithRelations) => (
         <div>
           <div className="font-medium">{sop.name}</div>
           <div className="text-sm text-muted-foreground">
@@ -72,36 +93,47 @@ export function SOPsList({
     },
     {
       header: "Status",
-      accessor: (sop: any) => (
-        <span
-          className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ${
-            sop.isActive
-              ? "bg-green-50 text-green-700 ring-1 ring-inset ring-green-600/20"
-              : "bg-red-50 text-red-700 ring-1 ring-inset ring-red-600/20"
-          }`}
-        >
-          {sop.isActive ? "Active" : "Inactive"}
-        </span>
+      accessor: (sop: SOPWithRelations) => (
+        <div className="flex flex-col gap-1">
+          <span
+            className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ${
+              sop.isActive
+                ? "bg-green-50 text-green-700 ring-1 ring-inset ring-green-600/20"
+                : "bg-red-50 text-red-700 ring-1 ring-inset ring-red-600/20"
+            }`}
+          >
+            {sop.isActive ? "Active" : "Inactive"}
+          </span>
+          {sop.isCritical && (
+            <span
+              className="inline-flex items-center rounded-md px-2 py-1 text-xs font-medium
+              bg-yellow-50 text-yellow-700 ring-1 ring-inset ring-yellow-600/20"
+            >
+              Critical
+            </span>
+          )}
+        </div>
       ),
       className: "w-24",
     },
     {
       header: "Required Roles",
-      accessor: (sop: any) => sop.requiredRoles.map(formatRole).join(", "),
+      accessor: (sop: SOPWithRelations) =>
+        sop.requiredRoles.map(formatRole).join(", "),
     },
     {
       header: "Required For",
-      accessor: (sop: any) =>
-        sop.positions?.length > 0
+      accessor: (sop: SOPWithRelations) =>
+        sop.positions && sop.positions.length > 0
           ? sop.positions
-              .filter((pos: any) => pos.isActive)
-              .map((pos: any) => pos.name)
+              .filter((pos) => pos.isActive)
+              .map((pos) => pos.name)
               .join(", ")
           : "No positions",
     },
     {
       header: "Last Modified",
-      accessor: (sop: any) => (
+      accessor: (sop: SOPWithRelations) => (
         <div>
           <div>{new Date(sop.updatedAt).toLocaleDateString()}</div>
           <div className="text-sm text-muted-foreground">
@@ -113,7 +145,7 @@ export function SOPsList({
     },
     {
       header: "Actions",
-      accessor: (sop: any) => (
+      accessor: (sop: SOPWithRelations) => (
         <div className="flex items-center space-x-2">
           <Button
             variant="outline"
@@ -140,7 +172,7 @@ export function SOPsList({
     },
   ];
 
-  const renderCard = (sop: any) => (
+  const renderCard = (sop: SOPWithRelations) => (
     <Card key={sop.id}>
       <CardHeader>
         <div className="flex justify-between items-start">
@@ -151,15 +183,25 @@ export function SOPsList({
             </p>
           </div>
           <div className="flex items-center space-x-2">
-            <span
-              className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ${
-                sop.isActive
-                  ? "bg-green-50 text-green-700 ring-1 ring-inset ring-green-600/20"
-                  : "bg-red-50 text-red-700 ring-1 ring-inset ring-red-600/20"
-              }`}
-            >
-              {sop.isActive ? "Active" : "Inactive"}
-            </span>
+            <div className="flex flex-col gap-1">
+              <span
+                className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ${
+                  sop.isActive
+                    ? "bg-green-50 text-green-700 ring-1 ring-inset ring-green-600/20"
+                    : "bg-red-50 text-red-700 ring-1 ring-inset ring-red-600/20"
+                }`}
+              >
+                {sop.isActive ? "Active" : "Inactive"}
+              </span>
+              {sop.isCritical && (
+                <span
+                  className="inline-flex items-center rounded-md px-2 py-1 text-xs font-medium
+                  bg-yellow-50 text-yellow-700 ring-1 ring-inset ring-yellow-600/20"
+                >
+                  Critical
+                </span>
+              )}
+            </div>
             <Button
               variant="outline"
               size="sm"
@@ -225,12 +267,18 @@ export function SOPsList({
                   Required for positions:
                 </dt>
                 <dd className="inline ml-1">
-                  {sop.positions?.length > 0
+                  {sop.positions && sop.positions.length > 0
                     ? sop.positions
-                        .filter((pos: any) => pos.isActive)
-                        .map((pos: any) => pos.name)
+                        .filter((pos) => pos.isActive)
+                        .map((pos) => pos.name)
                         .join(", ")
                     : "No positions"}
+                </dd>
+              </div>
+              <div>
+                <dt className="inline text-muted-foreground">Critical:</dt>
+                <dd className="inline ml-1">
+                  {sop.isCritical === true ? "Yes" : "No"}
                 </dd>
               </div>
             </dl>
@@ -360,7 +408,8 @@ export function SOPsList({
           setSelectedSOP(undefined);
         }}
         onSubmit={selectedSOP ? handleUpdate : handleCreate}
-        sop={selectedSOP}
+        // Use type assertion to tell TypeScript that the selectedSOP is compatible with the expected type
+        sop={selectedSOP as any}
         title={selectedSOP ? "Edit SOP" : "Create SOP"}
       />
     </div>

@@ -13,6 +13,7 @@ interface SOPFormProps {
     requiredRoles: Role[];
     positionIds: string[];
     isActive?: boolean;
+    isCritical?: boolean;
     id?: string;
   }) => Promise<void>;
   initialData?: {
@@ -24,6 +25,7 @@ interface SOPFormProps {
     requiredRoles: Role[];
     positions?: Position[];
     isActive: boolean;
+    isCritical?: boolean;
   };
   onCancel: () => void;
   availablePositions?: Position[];
@@ -43,6 +45,7 @@ export function SOPForm({
     requiredRoles: initialData?.requiredRoles || [],
     positionIds: initialData?.positions?.map((p) => p.id) || [],
     isActive: initialData?.isActive ?? true,
+    isCritical: initialData?.isCritical ?? false,
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -170,7 +173,7 @@ export function SOPForm({
       </div>
 
       {initialData && (
-        <div>
+        <div className="space-y-2">
           <label className="flex items-center space-x-2">
             <input
               type="checkbox"
@@ -181,6 +184,24 @@ export function SOPForm({
               className="rounded border-gray-300"
             />
             <span className="text-sm font-medium">Active</span>
+          </label>
+
+          <label className="flex items-center space-x-2">
+            <input
+              type="checkbox"
+              checked={formData.isCritical}
+              onChange={(e) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  isCritical: e.target.checked,
+                }))
+              }
+              className="rounded border-gray-300"
+            />
+            <span className="text-sm font-medium">Critical</span>
+            <span className="text-xs text-muted-foreground">
+              (Required for position)
+            </span>
           </label>
         </div>
       )}
