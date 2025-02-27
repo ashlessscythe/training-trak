@@ -1,5 +1,5 @@
 import { getServerSession } from "next-auth/next";
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { DocumentType } from "@prisma/client";
@@ -24,11 +24,9 @@ export async function GET() {
     // Otherwise, they can only see documents from their site
     const documents = await prisma.document.findMany({
       where: {
-        uploadedBy: {
-          siteId: !["OWNER", "ADMIN"].includes(currentUser.role)
-            ? currentUser.siteId
-            : undefined,
-        },
+        siteId: !["OWNER", "ADMIN"].includes(currentUser.role)
+          ? currentUser.siteId
+          : undefined,
       },
       include: {
         uploadedBy: {
@@ -114,6 +112,7 @@ export async function POST(req: NextRequest) {
         metadata,
         sopId: sopId || undefined,
         uploadedById: currentUser.id,
+        siteId: currentUser.siteId,
       },
       include: {
         uploadedBy: {
@@ -167,11 +166,38 @@ export async function PUT(req: NextRequest) {
     const formData = await req.formData();
     const id = formData.get("id") as string;
     const file = formData.get("content") as File | null;
-    // If there's a new file, use its name, otherwise keep existing name
-    const name = file ? file.name : (formData.get("name") as string);
     const type = formData.get("type") as DocumentType;
     const metadataStr = formData.get("metadata") as string;
     const baseMetadata = JSON.parse(metadataStr);
+    const sopId = formData.get("sopId") as string;
+
+    if (!id) {
+      return NextResponse.json(
+        { error: "Document ID is required" },
+        { status: 400 }
+      );
+    }
+
+    // Check if user has access to this document and get existing document data
+    const document = await prisma.document.findUnique({
+      where: { id },
+      select: {
+        uploadedById: true,
+        siteId: true,
+        name: true,
+      },
+    });
+
+    if (
+      !document ||
+      (!["OWNER", "ADMIN"].includes(currentUser.role) &&
+        document.siteId !== currentUser.siteId)
+    ) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    // If there's a new file, use its name, otherwise keep existing name
+    const name = file ? file.name : document.name;
 
     // If there's a new file, update the file-related metadata
     const metadata = file
@@ -182,35 +208,6 @@ export async function PUT(req: NextRequest) {
           uploadDate: new Date().toISOString(),
         }
       : baseMetadata;
-    const sopId = formData.get("sopId") as string;
-
-    if (!id) {
-      return NextResponse.json(
-        { error: "Document ID is required" },
-        { status: 400 }
-      );
-    }
-
-    // Check if user has access to this document
-    const document = await prisma.document.findUnique({
-      where: { id },
-      select: {
-        uploadedById: true,
-        uploadedBy: {
-          select: {
-            siteId: true,
-          },
-        },
-      },
-    });
-
-    if (
-      !document ||
-      (!["OWNER", "ADMIN"].includes(currentUser.role) &&
-        document.uploadedBy.siteId !== currentUser.siteId)
-    ) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
 
     const updateData: any = {
       name,
@@ -298,18 +295,14 @@ export async function DELETE(req: NextRequest) {
       where: { id },
       select: {
         uploadedById: true,
-        uploadedBy: {
-          select: {
-            siteId: true,
-          },
-        },
+        siteId: true,
       },
     });
 
     if (
       !document ||
       (!["OWNER", "ADMIN"].includes(currentUser.role) &&
-        document.uploadedBy.siteId !== currentUser.siteId)
+        document.siteId !== currentUser.siteId)
     ) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }

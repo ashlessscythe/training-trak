@@ -536,6 +536,7 @@ async function main() {
           },
           sopId: type === "SOP_DOCUMENT" && sop ? sop.id : null,
           uploadedById: uploadedBy.id,
+          siteId: site.id,
         },
       });
     })

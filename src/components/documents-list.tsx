@@ -10,10 +10,18 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useDocuments } from "@/hooks/useDocuments";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { ListView } from "@/components/list-view";
 import { ViewModeToggle } from "@/components/view-mode-toggle";
 import { useListView } from "@/hooks/useListView";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface DocumentsListProps {
   siteId?: string;
@@ -54,6 +62,21 @@ export function DocumentsList({
   } = useDocuments({ siteId, sops });
 
   const { viewMode, setViewMode, currentView } = useListView();
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [documentToDelete, setDocumentToDelete] = useState<string | null>(null);
+
+  const confirmDelete = (documentId: string) => {
+    setDocumentToDelete(documentId);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const executeDelete = async () => {
+    if (documentToDelete) {
+      await handleDelete(documentToDelete);
+      setIsDeleteDialogOpen(false);
+      setDocumentToDelete(null);
+    }
+  };
 
   useEffect(() => {
     fetchDocuments();
@@ -130,7 +153,7 @@ export function DocumentsList({
           <Button
             variant="destructive"
             size="sm"
-            onClick={() => handleDelete(document.id)}
+            onClick={() => confirmDelete(document.id)}
           >
             Delete
           </Button>
@@ -171,7 +194,7 @@ export function DocumentsList({
             <Button
               variant="destructive"
               size="sm"
-              onClick={() => handleDelete(document.id)}
+              onClick={() => confirmDelete(document.id)}
             >
               Delete
             </Button>
@@ -374,6 +397,29 @@ export function DocumentsList({
         document={selectedDocument}
         title={selectedDocument ? "Edit Document" : "Upload Document"}
       />
+
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Delete</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this document? This action cannot
+              be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsDeleteDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={executeDelete}>
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

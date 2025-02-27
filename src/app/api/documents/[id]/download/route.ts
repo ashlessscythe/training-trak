@@ -1,5 +1,5 @@
 import { getServerSession } from "next-auth/next";
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
@@ -32,11 +32,7 @@ export async function GET(
         content: true,
         name: true,
         metadata: true,
-        uploadedBy: {
-          select: {
-            siteId: true,
-          },
-        },
+        siteId: true,
       },
     });
 
@@ -50,7 +46,7 @@ export async function GET(
     // Check if user has access to this document's site
     if (
       !["OWNER", "ADMIN"].includes(currentUser.role) &&
-      document.uploadedBy.siteId !== currentUser.siteId
+      document.siteId !== currentUser.siteId
     ) {
       return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }

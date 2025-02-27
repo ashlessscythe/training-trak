@@ -22,20 +22,21 @@ model Site {
   users       User[]
   departments Department[]
   positions   Position[]
+  documents   Document[]
 
   @@index([code])
 }
 
 // Department model
 model Department {
-  id          String    @id @default(cuid())
+  id          String   @id @default(cuid())
   name        String
   description String?
-  isActive    Boolean   @default(true)
-  site        Site      @relation(fields: [siteId], references: [id])
+  isActive    Boolean  @default(true)
+  site        Site     @relation(fields: [siteId], references: [id])
   siteId      String
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
   users       User[]
 
   @@unique([name, siteId])
@@ -45,16 +46,16 @@ model Department {
 
 // Position model
 model Position {
-  id          String    @id @default(cuid())
+  id          String   @id @default(cuid())
   name        String
   description String?
-  isActive    Boolean   @default(true)
-  site        Site      @relation(fields: [siteId], references: [id])
+  isActive    Boolean  @default(true)
+  site        Site     @relation(fields: [siteId], references: [id])
   siteId      String
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
   users       User[]
-  sops        SOP[]     @relation("PositionSOPs")
+  sops        SOP[]    @relation("PositionSOPs")
 
   @@unique([name, siteId])
   @@index([name])
@@ -66,7 +67,7 @@ model User {
   id           String     @id @default(cuid())
   email        String     @unique
   name         String
-  ssoId        String?    
+  ssoId        String?
   shift        Shift?     @default(FIRST)
   password     String // Hashed password
   isActive     Boolean    @default(true)
@@ -159,12 +160,15 @@ model Document {
   sopId        String?
   uploadedBy   User         @relation("DocumentUploader", fields: [uploadedById], references: [id])
   uploadedById String
+  site         Site         @relation(fields: [siteId], references: [id])
+  siteId       String
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
 
   @@index([type])
   @@index([sopId])
   @@index([uploadedById])
+  @@index([siteId])
 }
 
 // Enums

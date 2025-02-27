@@ -1,5 +1,5 @@
 import { getServerSession } from "next-auth/next";
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { DocumentType } from "@prisma/client";
@@ -33,10 +33,7 @@ export async function GET(
 
     const documents = await prisma.document.findMany({
       where: {
-        uploadedBy: {
-          siteId: params.id,
-        },
-        type: "OTHER", // Only get site-specific documents
+        siteId: params.id,
       },
       include: {
         uploadedBy: {
@@ -133,6 +130,7 @@ export async function POST(
         metadata,
         sopId: sopId || undefined,
         uploadedById: currentUser.id,
+        siteId: params.id,
       },
       include: {
         uploadedBy: {
@@ -197,11 +195,37 @@ export async function PUT(
     const formData = await req.formData();
     const documentId = formData.get("id") as string;
     const file = formData.get("content") as File | null;
-    // If there's a new file, use its name, otherwise keep existing name
-    const name = file ? file.name : (formData.get("name") as string);
     const type = formData.get("type") as DocumentType;
     const metadataStr = formData.get("metadata") as string;
     const baseMetadata = JSON.parse(metadataStr);
+    const sopId = formData.get("sopId") as string;
+
+    if (!documentId) {
+      return NextResponse.json(
+        { error: "Document ID is required" },
+        { status: 400 }
+      );
+    }
+
+    // Check if document belongs to this site and get existing document data
+    const existingDocument = await prisma.document.findUnique({
+      where: { id: documentId },
+      select: {
+        uploadedById: true,
+        siteId: true,
+        name: true,
+      },
+    });
+
+    if (!existingDocument || existingDocument.siteId !== params.id) {
+      return NextResponse.json(
+        { error: "Document not found" },
+        { status: 404 }
+      );
+    }
+
+    // If there's a new file, use its name, otherwise keep existing name
+    const name = file ? file.name : existingDocument.name;
 
     // If there's a new file, update the file-related metadata
     const metadata = file
@@ -212,34 +236,6 @@ export async function PUT(
           uploadDate: new Date().toISOString(),
         }
       : baseMetadata;
-    const sopId = formData.get("sopId") as string;
-
-    if (!documentId) {
-      return NextResponse.json(
-        { error: "Document ID is required" },
-        { status: 400 }
-      );
-    }
-
-    // Check if document belongs to this site
-    const existingDocument = await prisma.document.findUnique({
-      where: { id: documentId },
-      select: {
-        uploadedById: true,
-        uploadedBy: {
-          select: {
-            siteId: true,
-          },
-        },
-      },
-    });
-
-    if (!existingDocument || existingDocument.uploadedBy.siteId !== params.id) {
-      return NextResponse.json(
-        { error: "Document not found" },
-        { status: 404 }
-      );
-    }
 
     const updateData: any = {
       name,
@@ -337,15 +333,11 @@ export async function DELETE(
     const document = await prisma.document.findUnique({
       where: { id: documentId },
       select: {
-        uploadedBy: {
-          select: {
-            siteId: true,
-          },
-        },
+        siteId: true,
       },
     });
 
-    if (!document || document.uploadedBy.siteId !== params.id) {
+    if (!document || document.siteId !== params.id) {
       return NextResponse.json(
         { error: "Document not found" },
         { status: 404 }
