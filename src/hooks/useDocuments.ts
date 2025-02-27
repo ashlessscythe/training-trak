@@ -61,7 +61,7 @@ export function useDocuments({ siteId, sops }: UseDocumentsOptions) {
         },
       },
     }),
-    []
+    [sops]
   );
 
   const resourceOptions = useMemo(
@@ -146,7 +146,7 @@ export function useDocuments({ siteId, sops }: UseDocumentsOptions) {
         }
       },
     }),
-    [baseUrl, filterConfig]
+    [baseUrl, filterConfig, sops]
   );
 
   const {

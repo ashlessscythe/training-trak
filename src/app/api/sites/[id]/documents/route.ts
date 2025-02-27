@@ -45,6 +45,7 @@ export async function GET(
         },
         sop: {
           select: {
+            id: true,
             name: true,
             version: true,
           },
@@ -142,6 +143,7 @@ export async function POST(
         },
         sop: {
           select: {
+            id: true,
             name: true,
             version: true,
           },
@@ -269,6 +271,7 @@ export async function PUT(
         },
         sop: {
           select: {
+            id: true,
             name: true,
             version: true,
           },

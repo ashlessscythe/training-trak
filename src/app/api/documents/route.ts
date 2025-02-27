@@ -38,6 +38,7 @@ export async function GET() {
         },
         sop: {
           select: {
+            id: true,
             name: true,
             version: true,
           },
@@ -124,6 +125,7 @@ export async function POST(req: NextRequest) {
         },
         sop: {
           select: {
+            id: true,
             name: true,
             version: true,
           },
@@ -241,6 +243,7 @@ export async function PUT(req: NextRequest) {
         },
         sop: {
           select: {
+            id: true,
             name: true,
             version: true,
           },
