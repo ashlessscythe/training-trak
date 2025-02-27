@@ -29,6 +29,7 @@ interface Arguments {
   "use-faker": boolean;
   clear: boolean;
   force: boolean;
+  "add-sites": boolean;
 }
 
 const argv = yargs(hideBin(process.argv))
@@ -55,6 +56,11 @@ const argv = yargs(hideBin(process.argv))
       type: "boolean",
       default: false,
     },
+    "add-sites": {
+      description: "Create new sites instead of using existing ones",
+      type: "boolean",
+      default: false,
+    },
   })
   .help()
   .parseSync() as Arguments;
@@ -74,6 +80,7 @@ async function main() {
   const count = argv.count || 5;
   const useFaker = argv["use-faker"] !== false;
   const force = argv.force || false;
+  const addSites = argv["add-sites"] || false;
 
   // Check if data already exists
   const existingSitesCount = await prisma.site.count();
@@ -128,35 +135,57 @@ async function main() {
   }
   sites.push(defaultSite);
 
-  // Create additional sites if needed
+  // Get existing sites or create new ones based on the add-sites flag
   if (count > 1 || force) {
-    const additionalSites = await Promise.all(
-      Array.from({ length: count - 1 }, async () => {
-        const siteCode = faker.string.alphanumeric(6).toUpperCase();
-        // Check if site with this code already exists
-        const existingSite = await prisma.site.findFirst({
-          where: { code: siteCode },
-        });
+    if (addSites) {
+      // Create additional sites (original behavior)
+      const additionalSites = await Promise.all(
+        Array.from({ length: count - 1 }, async () => {
+          const siteCode = faker.string.alphanumeric(6).toUpperCase();
+          // Check if site with this code already exists
+          const existingSite = await prisma.site.findFirst({
+            where: { code: siteCode },
+          });
 
-        if (existingSite && !force) {
-          return existingSite;
-        }
+          if (existingSite && !force) {
+            return existingSite;
+          }
 
-        return prisma.site.create({
-          data: {
-            name: useFaker
-              ? faker.company.name()
-              : `Site ${faker.number.int({ min: 1, max: 999 })}`,
-            code: siteCode,
-            description: useFaker
-              ? faker.company.catchPhrase()
-              : "A sample site description",
-            isActive: true,
-          },
-        });
-      })
-    );
-    sites.push(...additionalSites);
+          return prisma.site.create({
+            data: {
+              name: useFaker
+                ? faker.company.name()
+                : `Site ${faker.number.int({ min: 1, max: 999 })}`,
+              code: siteCode,
+              description: useFaker
+                ? faker.company.catchPhrase()
+                : "A sample site description",
+              isActive: true,
+            },
+          });
+        })
+      );
+      sites.push(...additionalSites);
+    } else {
+      // Use existing sites instead of creating new ones
+      const existingSites = await prisma.site.findMany({
+        where: {
+          code: { not: "DEFAULT" }, // Exclude the default site which we already have
+        },
+        take: count - 1, // Limit to count-1 since we already have the default site
+      });
+
+      if (existingSites.length > 0) {
+        sites.push(...existingSites);
+        console.log(
+          `Using ${existingSites.length} existing sites instead of creating new ones.`
+        );
+      } else {
+        console.log(
+          "No existing sites found other than DEFAULT. Consider using --add-sites to create new sites."
+        );
+      }
+    }
   }
 
   // Create departments and positions for each site
@@ -807,7 +836,7 @@ async function main() {
 
   console.log("Seed data created successfully!");
   console.log(`Created:
-- ${sites.length} sites
+- ${sites.length} sites${!addSites ? " (using existing sites)" : ""}
 - ${departments.length} departments (including DEFAULT_DEPT)
 - ${positions.length} positions (including DEFAULT_POSITION)
 - ${users.length} users (including default admin bob@bob.bob)
