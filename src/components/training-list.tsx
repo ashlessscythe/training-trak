@@ -4,6 +4,7 @@ import { TrainingStatus } from "@prisma/client";
 import { TrainingDialog } from "@/components/training-dialog";
 import { AssignTrainingDialog } from "@/components/assign-training-dialog";
 import { TrainingViewSelector } from "@/components/training-view-selector";
+import { useUserPermissions } from "@/hooks/useUserPermissions";
 import {
   Select,
   SelectContent,
@@ -51,6 +52,7 @@ export function TrainingList({
 
   const { viewMode, setViewMode, currentView } = useListView();
   const [expandedGroups, setExpandedGroups] = useState<string[]>([]);
+  const { canAssignTraining } = useUserPermissions();
 
   useEffect(() => {
     fetchTrainings();
@@ -65,16 +67,21 @@ export function TrainingList({
   }
 
   const toggleGroup = (groupName: string) => {
-    setExpandedGroups(prev => 
-      prev.includes(groupName) 
-        ? prev.filter(name => name !== groupName)
+    setExpandedGroups((prev) =>
+      prev.includes(groupName)
+        ? prev.filter((name) => name !== groupName)
         : [...prev, groupName]
     );
   };
 
   const parentColumns = [
     {
-      header: viewType === "user" ? "User" : viewType === "department" ? "Department" : "SOP",
+      header:
+        viewType === "user"
+          ? "User"
+          : viewType === "department"
+          ? "Department"
+          : "SOP",
       accessor: (groupName: string) => (
         <div className="flex items-center gap-2">
           <Button
@@ -105,12 +112,14 @@ export function TrainingList({
       header: "Progress",
       accessor: (groupName: string) => {
         const trainings = groupedTrainings[groupName];
-        const approved = trainings.filter(t => t.status === "APPROVED").length;
+        const approved = trainings.filter(
+          (t) => t.status === "APPROVED"
+        ).length;
         const total = trainings.length;
         return (
           <div className="flex items-center gap-2">
             <div className="w-32 h-2 bg-gray-200 rounded-full overflow-hidden">
-              <div 
+              <div
                 className="h-full bg-green-600 transition-all"
                 style={{ width: `${(approved / total) * 100}%` }}
               />
@@ -241,12 +250,14 @@ export function TrainingList({
 
       <div className="flex justify-between items-center mb-4">
         <div className="flex gap-4">
-          <Button
-            onClick={() => setIsAssignDialogOpen(true)}
-            className="mb-4"
-          >
-            Assign Training
-          </Button>
+          {canAssignTraining && (
+            <Button
+              onClick={() => setIsAssignDialogOpen(true)}
+              className="mb-4"
+            >
+              Assign Training
+            </Button>
+          )}
           <Select
             value={filters.status || "ALL"}
             onValueChange={(value) =>
@@ -311,40 +322,42 @@ export function TrainingList({
               </tr>
             </thead>
             <tbody>
-              {Object.entries(groupedTrainings).map(([groupName, groupTrainings]) => (
-                <>
-                  <tr
-                    key={groupName}
-                    className="border-b hover:bg-muted/50 cursor-pointer"
-                    onClick={() => toggleGroup(groupName)}
-                  >
-                    {parentColumns.map((column, index) => (
-                      <td
-                        key={index}
-                        className={`px-4 py-3 ${column.className || ""}`}
-                      >
-                        {column.accessor(groupName)}
-                      </td>
-                    ))}
-                  </tr>
-                  {expandedGroups.includes(groupName) && (
-                    <tr>
-                      <td colSpan={parentColumns.length} className="p-0">
-                        <div className="border-l-2 border-l-primary/20 ml-3">
-                          <ListView
-                            data={groupTrainings}
-                            columns={childColumns}
-                            view="table"
-                            renderCard={renderCard}
-                            keyExtractor={(training) => training.id}
-                            emptyMessage="No training records found."
-                          />
-                        </div>
-                      </td>
+              {Object.entries(groupedTrainings).map(
+                ([groupName, groupTrainings]) => (
+                  <>
+                    <tr
+                      key={groupName}
+                      className="border-b hover:bg-muted/50 cursor-pointer"
+                      onClick={() => toggleGroup(groupName)}
+                    >
+                      {parentColumns.map((column, index) => (
+                        <td
+                          key={index}
+                          className={`px-4 py-3 ${column.className || ""}`}
+                        >
+                          {column.accessor(groupName)}
+                        </td>
+                      ))}
                     </tr>
-                  )}
-                </>
-              ))}
+                    {expandedGroups.includes(groupName) && (
+                      <tr>
+                        <td colSpan={parentColumns.length} className="p-0">
+                          <div className="border-l-2 border-l-primary/20 ml-3">
+                            <ListView
+                              data={groupTrainings}
+                              columns={childColumns}
+                              view="table"
+                              renderCard={renderCard}
+                              keyExtractor={(training) => training.id}
+                              emptyMessage="No training records found."
+                            />
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </>
+                )
+              )}
             </tbody>
           </table>
         </div>

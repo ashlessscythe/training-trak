@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Site, Department, Position } from "@prisma/client";
+import { Site, Role, Department, Position } from "@prisma/client";
 import { UsersList } from "@/components/users-list";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -14,6 +14,7 @@ import {
 
 export default function UsersPage() {
   const [sites, setSites] = useState<Site[]>([]);
+  const [roles, setRoles] = useState<Role[]>(Object.values(Role));
   const [departments, setDepartments] = useState<Department[]>([]);
   const [positions, setPositions] = useState<Position[]>([]);
   const [selectedSite, setSelectedSite] = useState<string>("");
@@ -99,6 +100,7 @@ export default function UsersPage() {
       ) : (
         <UsersList
           sites={sites}
+          roles={roles}
           departments={departments}
           positions={positions}
           siteId={selectedSite}

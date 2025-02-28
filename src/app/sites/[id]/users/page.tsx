@@ -2,13 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { Site, Department, Position } from "@prisma/client";
+import { Site, Role, Department, Position } from "@prisma/client";
 import { UsersList } from "@/components/users-list";
 
 export default function SiteUsersPage() {
   const params = useParams();
   const siteId = params.id as string;
   const [site, setSite] = useState<Site>();
+  const [roles, setRoles] = useState<Role[]>(Object.values(Role));
   const [departments, setDepartments] = useState<Department[]>([]);
   const [positions, setPositions] = useState<Position[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -48,6 +49,7 @@ export default function SiteUsersPage() {
       siteId={siteId}
       title="Site Users"
       sites={[site]}
+      roles={roles}
       departments={departments}
       positions={positions}
     />

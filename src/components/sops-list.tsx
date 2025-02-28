@@ -14,6 +14,7 @@ import { useEffect } from "react";
 import { ListView } from "@/components/list-view";
 import { ViewModeToggle } from "@/components/view-mode-toggle";
 import { useListView } from "@/hooks/useListView";
+import { useUserPermissions } from "@/hooks/useUserPermissions";
 
 interface SOPsListProps {
   siteId?: string;
@@ -45,6 +46,7 @@ export function SOPsList({
   } = useSOPs({ siteId });
 
   const { viewMode, setViewMode, currentView } = useListView();
+  const { canEditSOP } = useUserPermissions();
 
   useEffect(() => {
     fetchSOPs();
@@ -147,24 +149,28 @@ export function SOPsList({
       header: "Actions",
       accessor: (sop: SOPWithRelations) => (
         <div className="flex items-center space-x-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              setSelectedSOP(sop);
-              setIsDialogOpen(true);
-            }}
-          >
-            Edit
-          </Button>
-          {sop.isActive && (
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={() => handleDelete(sop.id)}
-            >
-              Deactivate
-            </Button>
+          {canEditSOP && (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setSelectedSOP(sop);
+                  setIsDialogOpen(true);
+                }}
+              >
+                Edit
+              </Button>
+              {sop.isActive && (
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => handleDelete(sop.id)}
+                >
+                  Deactivate
+                </Button>
+              )}
+            </>
           )}
         </div>
       ),
@@ -202,24 +208,28 @@ export function SOPsList({
                 </span>
               )}
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setSelectedSOP(sop);
-                setIsDialogOpen(true);
-              }}
-            >
-              Edit
-            </Button>
-            {sop.isActive && (
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={() => handleDelete(sop.id)}
-              >
-                Deactivate
-              </Button>
+            {canEditSOP && (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setSelectedSOP(sop);
+                    setIsDialogOpen(true);
+                  }}
+                >
+                  Edit
+                </Button>
+                {sop.isActive && (
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => handleDelete(sop.id)}
+                  >
+                    Deactivate
+                  </Button>
+                )}
+              </>
             )}
           </div>
         </div>
@@ -323,7 +333,9 @@ export function SOPsList({
         <h1 className="text-3xl font-bold">{title}</h1>
         <div className="flex items-center space-x-4">
           <ViewModeToggle viewMode={viewMode} onChange={setViewMode} />
-          <Button onClick={() => setIsDialogOpen(true)}>Create SOP</Button>
+          {canEditSOP && (
+            <Button onClick={() => setIsDialogOpen(true)}>Create SOP</Button>
+          )}
         </div>
       </div>
 

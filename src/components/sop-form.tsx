@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Position, Role, SOP } from "@prisma/client";
+import { useUserPermissions } from "@/hooks/useUserPermissions";
 
 interface SOPFormProps {
   onSubmit: (data: {
@@ -49,6 +50,7 @@ export function SOPForm({
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { canMarkSOPCritical } = useUserPermissions();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -186,23 +188,25 @@ export function SOPForm({
             <span className="text-sm font-medium">Active</span>
           </label>
 
-          <label className="flex items-center space-x-2">
-            <input
-              type="checkbox"
-              checked={formData.isCritical}
-              onChange={(e) =>
-                setFormData((prev) => ({
-                  ...prev,
-                  isCritical: e.target.checked,
-                }))
-              }
-              className="rounded border-gray-300"
-            />
-            <span className="text-sm font-medium">Critical</span>
-            <span className="text-xs text-muted-foreground">
-              (Required for position)
-            </span>
-          </label>
+          {canMarkSOPCritical && (
+            <label className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                checked={formData.isCritical}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    isCritical: e.target.checked,
+                  }))
+                }
+                className="rounded border-gray-300"
+              />
+              <span className="text-sm font-medium">Critical</span>
+              <span className="text-xs text-muted-foreground">
+                (Required for position)
+              </span>
+            </label>
+          )}
         </div>
       )}
 

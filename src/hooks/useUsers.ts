@@ -14,6 +14,7 @@ interface UserFilters {
 
 type UserWithRelations = User & {
   site: Site;
+  role: Role;
   department: Department;
   position: Position;
   trainings: { status: string }[];
@@ -24,6 +25,7 @@ type UserWithRelations = User & {
 interface UseUsersOptions {
   siteId?: string;
   sites: Site[];
+  roles: Role[];
   departments: Department[];
   positions: Position[];
 }
@@ -31,6 +33,7 @@ interface UseUsersOptions {
 export function useUsers({
   siteId,
   sites,
+  roles,
   departments,
   positions,
 }: UseUsersOptions) {

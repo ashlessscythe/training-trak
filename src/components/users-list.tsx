@@ -20,6 +20,7 @@ interface UsersListProps {
   siteId?: string;
   title?: string;
   sites: Site[];
+  roles: Role[];
   departments: Department[];
   positions: Position[];
 }
@@ -28,6 +29,7 @@ export function UsersList({
   siteId,
   title = "Users",
   sites,
+  roles,
   departments,
   positions,
 }: UsersListProps) {
@@ -50,7 +52,7 @@ export function UsersList({
     handleDelete,
     getUserStats,
     formatRole,
-  } = useUsers({ siteId, sites, departments, positions });
+  } = useUsers({ siteId, sites, roles, departments, positions });
 
   const { viewMode, setViewMode, currentView } = useListView();
 
@@ -66,6 +68,10 @@ export function UsersList({
     );
   }
 
+  const displayCase = (str: String) => {
+    return str.replace(/_/g, " "); // Replace underscores with spaces
+  };
+
   const columns = [
     {
       header: "Name",
@@ -73,6 +79,9 @@ export function UsersList({
         <div>
           <div className="font-medium">{user.name}</div>
           <div className="text-sm text-muted-foreground">{user.email}</div>
+          <div className="text-sm text-muted-foreground">
+            {displayCase(user.role)}
+          </div>
         </div>
       ),
     },
