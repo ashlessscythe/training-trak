@@ -2,6 +2,7 @@ import { Resend } from "resend";
 import { RegistrationEmail } from "@/components/emails/registration-email";
 import { AccountApprovalEmail } from "@/components/emails/account-approval-email";
 import { AdminNotificationEmail } from "@/components/emails/admin-notification-email";
+import { PasswordResetEmail } from "@/components/emails/password-reset-email";
 import { User, Site } from "@prisma/client";
 import * as React from "react";
 import { siteConfig } from "./config";
@@ -12,7 +13,7 @@ const fromEmail =
   process.env.SMTP_FROM || `${siteConfig.name}<noreply@example.com>`;
 
 // Email types
-export type EmailType = "registration" | "account-approval";
+export type EmailType = "registration" | "account-approval" | "password-reset";
 
 // Email service
 export class EmailService {
@@ -90,7 +91,7 @@ export class EmailService {
   }
 
   /**
-   * Send a notification email to admins and site admins about a new user registration
+   * Send an admin notification email to admins and site admins about a new user registration
    * @param user Newly registered user object
    * @param site Site object
    * @param adminEmails Array of admin email addresses
@@ -123,6 +124,29 @@ export class EmailService {
         adminDashboardUrl,
       }),
       bccRecipients
+    );
+  }
+
+  /**
+   * Send a password reset email to a user
+   * @param user User object
+   * @param resetToken Password reset token
+   * @returns Promise with the result of the email sending operation
+   */
+  static async sendPasswordResetEmail(user: User, resetToken: string) {
+    const resetLink = `${
+      process.env.NEXTAUTH_URL
+    }/auth/reset-password?token=${resetToken}&email=${encodeURIComponent(
+      user.email
+    )}`;
+
+    return this.sendEmail(
+      user.email,
+      `${siteConfig.name} - Password Reset`,
+      React.createElement(PasswordResetEmail, {
+        name: user.name,
+        resetLink,
+      })
     );
   }
 }

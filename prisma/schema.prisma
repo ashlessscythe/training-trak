@@ -64,22 +64,24 @@ model Position {
 
 // User model with role-based access
 model User {
-  id           String     @id @default(cuid())
-  email        String     @unique
-  name         String
-  ssoId        String?
-  shift        Shift?     @default(FIRST)
-  password     String // Hashed password
-  isActive     Boolean    @default(true)
-  site         Site       @relation(fields: [siteId], references: [id])
-  siteId       String
-  department   Department @relation(fields: [departmentId], references: [id])
-  departmentId String
-  position     Position   @relation(fields: [positionId], references: [id])
-  positionId   String
-  role         Role       @default(PENDING)
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  id                    String     @id @default(cuid())
+  email                 String     @unique
+  name                  String
+  ssoId                 String?
+  shift                 Shift?     @default(FIRST)
+  password              String // Hashed password
+  resetToken            String?    // Password reset token
+  resetTokenExpires     DateTime?  // Token expiration time
+  isActive              Boolean    @default(true)
+  site                  Site       @relation(fields: [siteId], references: [id])
+  siteId                String
+  department            Department @relation(fields: [departmentId], references: [id])
+  departmentId          String
+  position              Position   @relation(fields: [positionId], references: [id])
+  positionId            String
+  role                  Role       @default(PENDING)
+  createdAt             DateTime   @default(now())
+  updatedAt             DateTime   @updatedAt
 
   // Relations for different user roles
   uploadedDocs      Document[]         @relation("DocumentUploader")

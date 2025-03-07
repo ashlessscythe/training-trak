@@ -103,6 +103,14 @@ function SignInForm() {
         </form>
 
         <div className="mt-4 text-center text-sm">
+          <div className="mb-2">
+            <Link
+              href="/auth/forgot-password"
+              className="text-primary hover:underline"
+            >
+              Forgot password?
+            </Link>
+          </div>
           <span className="text-muted-foreground">
             Don&apos;t have an account?{" "}
           </span>
