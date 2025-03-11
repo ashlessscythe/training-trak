@@ -14,6 +14,8 @@ export function getTrainingStatusColor(status: TrainingStatus): string {
   switch (status) {
     case "COMPLETED":
       return "text-blue-600";
+    case "SIGNED":
+      return "text-green-600";
     case "IN_PROGRESS":
       return "text-yellow-600";
     default:
@@ -30,6 +32,8 @@ export function getTrainingStatusText(status: TrainingStatus): string {
   switch (status) {
     case "COMPLETED":
       return "Completed";
+    case "SIGNED":
+      return "Signed";
     case "IN_PROGRESS":
       return "In Progress";
     default:
@@ -46,6 +50,8 @@ export function getTrainingStatusBgColor(status: TrainingStatus): string {
   switch (status) {
     case "COMPLETED":
       return "bg-blue-100";
+    case "SIGNED":
+      return "bg-green-100";
     case "IN_PROGRESS":
       return "bg-yellow-100";
     default:

@@ -138,12 +138,14 @@ model TrainingProgress {
   status       TrainingStatus @default(IN_PROGRESS)
   completedAt  DateTime?
   notes        String?
+  isHistorical Boolean        @default(false)
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
 
   @@index([userId])
   @@index([sopId])
   @@index([status])
+  @@index([isHistorical])
 }
 
 // Document model for various types of documents
@@ -181,6 +183,7 @@ enum Role {
 
 enum TrainingStatus {
   IN_PROGRESS
+  SIGNED
   COMPLETED
 }
 

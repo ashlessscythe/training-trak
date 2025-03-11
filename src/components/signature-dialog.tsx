@@ -138,6 +138,18 @@ export function SignatureDialog({
       const signatureData = canvas.toDataURL("image/png");
       const trainerName = session?.user?.name || "Unknown Trainer";
 
+      // Update the training status to SIGNED
+      await fetch("/api/trainings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: training.id,
+          status: "SIGNED",
+          notes: `Signed by ${trainerName} on ${new Date().toLocaleDateString()}`,
+        }),
+      });
+
+      // Submit the signature data
       await onSubmit({
         signatureData,
         trainingId: training.id,

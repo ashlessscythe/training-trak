@@ -39,7 +39,10 @@ export function TrainingList({
     useState(false);
   const {
     trainings,
-    groupedTrainings,
+    currentTrainings,
+    historicalTrainings,
+    groupedCurrentTrainings,
+    groupedHistoricalTrainings,
     viewType,
     setViewType,
     isLoading,
@@ -113,17 +116,22 @@ export function TrainingList({
     },
     {
       header: "Count",
-      accessor: (groupName: string) => groupedTrainings[groupName].length,
+      accessor: (groupName: string) => {
+        // For the current section, only show count of current trainings
+        return groupedCurrentTrainings[groupName]?.length || 0;
+      },
       className: "w-24",
     },
     {
       header: "Progress",
       accessor: (groupName: string) => {
-        const trainings = groupedTrainings[groupName];
+        // For the current section, only use current trainings
+        const trainings = groupedCurrentTrainings[groupName] || [];
+
         const completed = trainings.filter(
-          (t) => t.status === "COMPLETED"
+          (t: any) => t.status === "COMPLETED" || t.status === "SIGNED"
         ).length;
-        const total = trainings.length;
+        const total = trainings.length || 1; // Avoid division by zero
         return (
           <div className="flex items-center gap-2">
             <div className="w-32 h-2 bg-gray-200 rounded-full overflow-hidden">
@@ -340,62 +348,222 @@ export function TrainingList({
         </div>
       </div>
 
-      <div className="rounded-md border">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b bg-muted/50">
-                {parentColumns.map((column, index) => (
-                  <th
-                    key={index}
-                    className={`px-4 py-3 text-left text-sm font-medium ${
-                      column.className || ""
-                    }`}
-                  >
-                    {column.header}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {Object.entries(groupedTrainings).map(
-                ([groupName, groupTrainings]) => (
-                  <React.Fragment key={`group-${groupName}`}>
-                    <tr
-                      key={groupName}
-                      className="border-b hover:bg-muted/50 cursor-pointer"
-                      onClick={() => toggleGroup(groupName)}
+      {/* In Progress & Signed Section */}
+      <div className="mb-8">
+        <h2 className="text-xl font-semibold mb-4">In Progress & Signed</h2>
+        <div className="rounded-md border">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b bg-muted/50">
+                  {parentColumns.map((column, index) => (
+                    <th
+                      key={index}
+                      className={`px-4 py-3 text-left text-sm font-medium ${
+                        column.className || ""
+                      }`}
                     >
-                      {parentColumns.map((column, index) => (
-                        <td
-                          key={index}
-                          className={`px-4 py-3 ${column.className || ""}`}
-                        >
-                          {column.accessor(groupName)}
-                        </td>
-                      ))}
-                    </tr>
-                    {expandedGroups.includes(groupName) && (
-                      <tr>
-                        <td colSpan={parentColumns.length} className="p-0">
-                          <div className="border-l-2 border-l-primary/20 ml-3">
-                            <ListView
-                              data={groupTrainings}
-                              columns={childColumns}
-                              view="table"
-                              renderCard={renderCard}
-                              keyExtractor={(training) => training.id}
-                              emptyMessage="No training records found."
-                            />
-                          </div>
-                        </td>
+                      {column.header}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {Object.entries(groupedCurrentTrainings).map(
+                  ([groupName, groupTrainings]) => (
+                    <React.Fragment key={`current-group-${groupName}`}>
+                      <tr
+                        key={groupName}
+                        className="border-b hover:bg-muted/50 cursor-pointer"
+                        onClick={() => toggleGroup(`current-${groupName}`)}
+                      >
+                        {parentColumns.map((column, index) => (
+                          <td
+                            key={index}
+                            className={`px-4 py-3 ${column.className || ""}`}
+                          >
+                            {column.accessor(groupName)}
+                          </td>
+                        ))}
                       </tr>
-                    )}
-                  </React.Fragment>
-                )
-              )}
-            </tbody>
-          </table>
+                      {expandedGroups.includes(`current-${groupName}`) && (
+                        <tr>
+                          <td colSpan={parentColumns.length} className="p-0">
+                            <div className="border-l-2 border-l-primary/20 ml-3">
+                              <ListView
+                                data={groupTrainings}
+                                columns={childColumns}
+                                view="table"
+                                renderCard={renderCard}
+                                keyExtractor={(training) => training.id}
+                                emptyMessage="No training records found."
+                              />
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  )
+                )}
+                {Object.keys(groupedCurrentTrainings).length === 0 && (
+                  <tr>
+                    <td
+                      colSpan={parentColumns.length}
+                      className="p-4 text-center"
+                    >
+                      No in-progress or signed training records found.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      {/* Completed Section */}
+      <div>
+        <h2 className="text-xl font-semibold mb-4">Completed</h2>
+        <div className="rounded-md border">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b bg-muted/50">
+                  {/* Create a modified version of parentColumns for the historical section */}
+                  {[
+                    parentColumns[0],
+                    {
+                      header: "Count",
+                      accessor: (groupName: string) => {
+                        // For the historical section, only show count of historical trainings
+                        return (
+                          groupedHistoricalTrainings[groupName]?.length || 0
+                        );
+                      },
+                      className: "w-24",
+                    },
+                    {
+                      header: "Progress",
+                      accessor: (groupName: string) => {
+                        // For the historical section, all trainings are completed
+                        const trainings =
+                          groupedHistoricalTrainings[groupName] || [];
+                        const total = trainings.length || 1;
+
+                        return (
+                          <div className="flex items-center gap-2">
+                            <div className="w-32 h-2 bg-gray-200 rounded-full overflow-hidden">
+                              <div
+                                className="h-full bg-blue-600 transition-all"
+                                style={{ width: "100%" }}
+                              />
+                            </div>
+                            <span className="text-sm text-muted-foreground">
+                              {total}/{total}
+                            </span>
+                          </div>
+                        );
+                      },
+                      className: "w-48",
+                    },
+                  ].map((column, index) => (
+                    <th
+                      key={index}
+                      className={`px-4 py-3 text-left text-sm font-medium ${
+                        column.className || ""
+                      }`}
+                    >
+                      {column.header}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {Object.entries(groupedHistoricalTrainings).map(
+                  ([groupName, groupTrainings]) => (
+                    <React.Fragment key={`historical-group-${groupName}`}>
+                      <tr
+                        key={groupName}
+                        className="border-b hover:bg-muted/50 cursor-pointer"
+                        onClick={() => toggleGroup(`historical-${groupName}`)}
+                      >
+                        {/* Use the same modified columns for the row data */}
+                        {[
+                          parentColumns[0],
+                          {
+                            header: "Count",
+                            accessor: (groupName: string) => {
+                              return (
+                                groupedHistoricalTrainings[groupName]?.length ||
+                                0
+                              );
+                            },
+                            className: "w-24",
+                          },
+                          {
+                            header: "Progress",
+                            accessor: (groupName: string) => {
+                              const trainings =
+                                groupedHistoricalTrainings[groupName] || [];
+                              const total = trainings.length || 1;
+
+                              return (
+                                <div className="flex items-center gap-2">
+                                  <div className="w-32 h-2 bg-gray-200 rounded-full overflow-hidden">
+                                    <div
+                                      className="h-full bg-blue-600 transition-all"
+                                      style={{ width: "100%" }}
+                                    />
+                                  </div>
+                                  <span className="text-sm text-muted-foreground">
+                                    {total}/{total}
+                                  </span>
+                                </div>
+                              );
+                            },
+                            className: "w-48",
+                          },
+                        ].map((column, index) => (
+                          <td
+                            key={index}
+                            className={`px-4 py-3 ${column.className || ""}`}
+                          >
+                            {column.accessor(groupName)}
+                          </td>
+                        ))}
+                      </tr>
+                      {expandedGroups.includes(`historical-${groupName}`) && (
+                        <tr>
+                          <td colSpan={parentColumns.length} className="p-0">
+                            <div className="border-l-2 border-l-primary/20 ml-3">
+                              <ListView
+                                data={groupTrainings}
+                                columns={childColumns}
+                                view="table"
+                                renderCard={renderCard}
+                                keyExtractor={(training) => training.id}
+                                emptyMessage="No historical training records found."
+                              />
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  )
+                )}
+                {Object.keys(groupedHistoricalTrainings).length === 0 && (
+                  <tr>
+                    <td
+                      colSpan={parentColumns.length}
+                      className="p-4 text-center"
+                    >
+                      No completed historical training records found.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 

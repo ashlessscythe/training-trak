@@ -98,7 +98,8 @@ export async function PUT(req: NextRequest) {
     }
 
     const data = await req.json();
-    const { id, status, notes } = data;
+    const { id, status, notes, isHistorical, createNewRecord, sopId, userId } =
+      data;
 
     if (!id) {
       return NextResponse.json(
@@ -143,32 +144,79 @@ export async function PUT(req: NextRequest) {
       updateData.completedAt = new Date();
     }
 
-    const updatedTraining = await prisma.trainingProgress.update({
-      where: { id },
-      data: updateData,
-      include: {
-        user: {
-          select: {
-            name: true,
-            siteId: true,
-            department: {
-              select: {
-                name: true,
-                id: true,
+    // Add isHistorical flag if provided
+    if (isHistorical !== undefined) {
+      updateData.isHistorical = isHistorical;
+    }
+
+    // Start a transaction to handle both updating the existing record
+    // and creating a new one if needed
+    const result = await prisma.$transaction(async (tx) => {
+      // Update the existing training record
+      const updatedTraining = await tx.trainingProgress.update({
+        where: { id },
+        data: updateData,
+        include: {
+          user: {
+            select: {
+              name: true,
+              siteId: true,
+              department: {
+                select: {
+                  name: true,
+                  id: true,
+                },
               },
             },
           },
-        },
-        sop: {
-          select: {
-            name: true,
-            version: true,
+          sop: {
+            select: {
+              name: true,
+              version: true,
+            },
           },
         },
-      },
+      });
+
+      // If this is a completion and we need to create a new record for future training
+      if (createNewRecord && status === "COMPLETED" && sopId && userId) {
+        // Create a new training record for the same SOP and user
+        const newTraining = await tx.trainingProgress.create({
+          data: {
+            userId,
+            sopId,
+            status: "IN_PROGRESS",
+            isHistorical: false,
+          },
+          include: {
+            user: {
+              select: {
+                name: true,
+                siteId: true,
+                department: {
+                  select: {
+                    name: true,
+                    id: true,
+                  },
+                },
+              },
+            },
+            sop: {
+              select: {
+                name: true,
+                version: true,
+              },
+            },
+          },
+        });
+
+        return { updatedTraining, newTraining };
+      }
+
+      return { updatedTraining };
     });
 
-    return NextResponse.json(updatedTraining);
+    return NextResponse.json(result);
   } catch (error) {
     return NextResponse.json(
       { error: "Internal server error" },

@@ -55,9 +55,10 @@ export function MultipleSignaturesDialog({
   const fetchInProgressSOPs = useCallback(async () => {
     setIsLoading(true);
     try {
+      // Fetch both IN_PROGRESS and SIGNED trainings
       const url = siteId
-        ? `/api/sites/${siteId}/trainings?status=IN_PROGRESS`
-        : `/api/trainings?status=IN_PROGRESS`;
+        ? `/api/sites/${siteId}/trainings?status=IN_PROGRESS,SIGNED`
+        : `/api/trainings?status=IN_PROGRESS,SIGNED`;
 
       const response = await fetch(url);
       if (!response.ok) {
@@ -146,9 +147,10 @@ export function MultipleSignaturesDialog({
       setIsSubmissionComplete(false);
 
       try {
+        // Fetch both IN_PROGRESS and SIGNED trainings for the selected SOP
         const url = siteId
-          ? `/api/sites/${siteId}/trainings?status=IN_PROGRESS&sopId=${sopId}`
-          : `/api/trainings?status=IN_PROGRESS&sopId=${sopId}`;
+          ? `/api/sites/${siteId}/trainings?status=IN_PROGRESS,SIGNED&sopId=${sopId}`
+          : `/api/trainings?status=IN_PROGRESS,SIGNED&sopId=${sopId}`;
 
         const response = await fetch(url);
         if (!response.ok) {
@@ -296,6 +298,19 @@ export function MultipleSignaturesDialog({
           }, 100);
         } else {
           setIsSignDialogOpen(false);
+
+          // Update the training status to SIGNED
+          await fetch("/api/trainings", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              id: currentTraining.id,
+              status: "SIGNED",
+              notes: `Signed by ${
+                data.trainerName
+              } on ${new Date().toLocaleDateString()} (multi-signature process)`,
+            }),
+          });
 
           // Generate and upload multi-signature PDF
           await generateAndUploadMultiSignaturePDF(data.trainerName);

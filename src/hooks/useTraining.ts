@@ -7,6 +7,7 @@ import { getTrainingStatusColor } from "@/lib/utils";
 interface TrainingFilters {
   status: TrainingStatus | "ALL";
   viewType: TrainingViewType;
+  isHistorical?: boolean;
 }
 
 export type TrainingWithRelations = TrainingProgress & {
@@ -29,6 +30,7 @@ export type TrainingWithRelations = TrainingProgress & {
   approvedBy: {
     name: string;
   } | null;
+  isHistorical: boolean;
 };
 
 interface UseTrainingOptions {
@@ -119,41 +121,56 @@ export function useTraining({ siteId, userId }: UseTrainingOptions) {
     handleUpdateResource: handleUpdate,
   } = useResourceList<TrainingWithRelations, TrainingFilters>(resourceOptions);
 
-  const groupedTrainings = useMemo(() => {
-    const groupByType = (trainings: TrainingWithRelations[]) => {
-      switch (viewType) {
-        case "user":
-          return trainings.reduce((acc, training) => {
-            const userName = training.user.name;
-            if (!acc[userName]) {
-              acc[userName] = [];
-            }
-            acc[userName].push(training);
-            return acc;
-          }, {} as Record<string, TrainingWithRelations[]>);
-        case "department":
-          return trainings.reduce((acc, training) => {
-            const deptName = training.user.department?.name || "No Department";
-            if (!acc[deptName]) {
-              acc[deptName] = [];
-            }
-            acc[deptName].push(training);
-            return acc;
-          }, {} as Record<string, TrainingWithRelations[]>);
-        case "sop":
-        default:
-          return trainings.reduce((acc, training) => {
-            const sopName = training.sop.name;
-            if (!acc[sopName]) {
-              acc[sopName] = [];
-            }
-            acc[sopName].push(training);
-            return acc;
-          }, {} as Record<string, TrainingWithRelations[]>);
-      }
-    };
-    return groupByType(trainings);
-  }, [trainings, viewType]);
+  // Split trainings into current and historical
+  const currentTrainings = useMemo(() => {
+    return trainings.filter((training) => !training.isHistorical);
+  }, [trainings]);
+
+  const historicalTrainings = useMemo(() => {
+    return trainings.filter((training) => training.isHistorical);
+  }, [trainings]);
+
+  // Group trainings by type (user, department, or SOP)
+  const groupTrainingsByType = (trainingsToGroup: TrainingWithRelations[]) => {
+    switch (viewType) {
+      case "user":
+        return trainingsToGroup.reduce((acc, training) => {
+          const userName = training.user.name;
+          if (!acc[userName]) {
+            acc[userName] = [];
+          }
+          acc[userName].push(training);
+          return acc;
+        }, {} as Record<string, TrainingWithRelations[]>);
+      case "department":
+        return trainingsToGroup.reduce((acc, training) => {
+          const deptName = training.user.department?.name || "No Department";
+          if (!acc[deptName]) {
+            acc[deptName] = [];
+          }
+          acc[deptName].push(training);
+          return acc;
+        }, {} as Record<string, TrainingWithRelations[]>);
+      case "sop":
+      default:
+        return trainingsToGroup.reduce((acc, training) => {
+          const sopName = training.sop.name;
+          if (!acc[sopName]) {
+            acc[sopName] = [];
+          }
+          acc[sopName].push(training);
+          return acc;
+        }, {} as Record<string, TrainingWithRelations[]>);
+    }
+  };
+
+  const groupedCurrentTrainings = useMemo(() => {
+    return groupTrainingsByType(currentTrainings);
+  }, [currentTrainings, viewType]);
+
+  const groupedHistoricalTrainings = useMemo(() => {
+    return groupTrainingsByType(historicalTrainings);
+  }, [historicalTrainings, viewType]);
 
   const getStatusColor = useMemo(
     () => (status: TrainingStatus) => {
@@ -164,7 +181,10 @@ export function useTraining({ siteId, userId }: UseTrainingOptions) {
 
   return {
     trainings,
-    groupedTrainings,
+    currentTrainings,
+    historicalTrainings,
+    groupedCurrentTrainings,
+    groupedHistoricalTrainings,
     viewType,
     setViewType,
     isLoading,

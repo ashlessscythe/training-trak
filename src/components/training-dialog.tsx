@@ -44,12 +44,29 @@ export function TrainingDialog({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await onSubmit({
+
+    // Prepare the data to submit
+    const data: any = {
       id: training?.id,
       status,
       notes,
-      ...(status === "COMPLETED" && { completedAt: new Date().toISOString() }),
-    });
+    };
+
+    // If status is COMPLETED, add completedAt timestamp and mark as historical
+    if (status === "COMPLETED") {
+      data.completedAt = new Date().toISOString();
+      data.isHistorical = true;
+
+      // If this is a new completion of a previously completed SOP,
+      // we'll need to create a new training record for future training
+      if (training?.sopId && training?.userId) {
+        data.createNewRecord = true;
+        data.sopId = training.sopId;
+        data.userId = training.userId;
+      }
+    }
+
+    await onSubmit(data);
   };
 
   const statuses = Object.values(TrainingStatus);
