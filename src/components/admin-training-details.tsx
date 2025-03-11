@@ -36,8 +36,6 @@ export function AdminTrainingDetails({
     const counts = {
       IN_PROGRESS: 0,
       COMPLETED: 0,
-      APPROVED: 0,
-      REJECTED: 0,
     };
 
     deptTrainings.forEach((training) => {
@@ -47,7 +45,7 @@ export function AdminTrainingDetails({
     return {
       total,
       ...counts,
-      percentComplete: total ? Math.round((counts.APPROVED / total) * 100) : 0,
+      percentComplete: total ? Math.round((counts.COMPLETED / total) * 100) : 0,
     };
   };
 
@@ -76,8 +74,8 @@ export function AdminTrainingDetails({
                   <CardTitle className="text-lg">{deptName}</CardTitle>
                   <div className="flex items-center space-x-2">
                     <div className="text-sm">
-                      <span className="font-medium">{stats.APPROVED}</span> of{" "}
-                      <span>{stats.total}</span> approved
+                      <span className="font-medium">{stats.COMPLETED}</span> of{" "}
+                      <span>{stats.total}</span> completed
                     </div>
                     <div className="w-24 bg-gray-200 rounded-full h-2">
                       <div
@@ -133,88 +131,61 @@ export function AdminTrainingDetails({
                           {stats.COMPLETED}
                         </div>
                       </div>
-                      <div className="p-3 bg-muted/30 rounded-md">
-                        <div className="text-sm text-muted-foreground">
-                          Approved
-                        </div>
-                        <div
-                          className={`text-xl font-bold ${getTrainingStatusColor(
-                            "APPROVED" as TrainingStatus
-                          )}`}
-                        >
-                          {stats.APPROVED}
-                        </div>
-                      </div>
-                      <div className="p-3 bg-muted/30 rounded-md">
-                        <div className="text-sm text-muted-foreground">
-                          Rejected
-                        </div>
-                        <div
-                          className={`text-xl font-bold ${getTrainingStatusColor(
-                            "REJECTED" as TrainingStatus
-                          )}`}
-                        >
-                          {stats.REJECTED}
-                        </div>
-                      </div>
                     </div>
+                  </div>
 
-                    <div className="mt-4">
-                      <h3 className="font-medium mb-2">Trainee Details</h3>
-                      <div className="border rounded-md overflow-hidden">
-                        <table className="min-w-full divide-y divide-gray-200">
-                          <thead className="bg-muted/50">
-                            <tr>
-                              <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">
-                                User
-                              </th>
-                              <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">
-                                SOP
-                              </th>
-                              <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">
-                                Status
-                              </th>
-                              <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">
-                                Last Updated
-                              </th>
+                  <div className="mt-4">
+                    <h3 className="font-medium mb-2">Trainee Details</h3>
+                    <div className="border rounded-md overflow-hidden">
+                      <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-muted/50">
+                          <tr>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">
+                              User
+                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">
+                              SOP
+                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">
+                              Status
+                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">
+                              Last Updated
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200">
+                          {deptTrainings.map((training) => (
+                            <tr key={training.id} className="hover:bg-muted/30">
+                              <td className="px-4 py-3 text-sm">
+                                {training.user.name}
+                              </td>
+                              <td className="px-4 py-3 text-sm">
+                                {training.sop.name}{" "}
+                                <span className="text-xs text-muted-foreground">
+                                  v{training.sop.version}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 text-sm">
+                                <span
+                                  className={`inline-flex px-2 py-1 text-xs rounded-full ${getTrainingStatusColor(
+                                    training.status
+                                  )}/10 ${getTrainingStatusColor(
+                                    training.status
+                                  )}`}
+                                >
+                                  {getTrainingStatusText(training.status)}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 text-sm text-muted-foreground">
+                                {new Date(
+                                  training.updatedAt
+                                ).toLocaleDateString()}
+                              </td>
                             </tr>
-                          </thead>
-                          <tbody className="divide-y divide-gray-200">
-                            {deptTrainings.map((training) => (
-                              <tr
-                                key={training.id}
-                                className="hover:bg-muted/30"
-                              >
-                                <td className="px-4 py-3 text-sm">
-                                  {training.user.name}
-                                </td>
-                                <td className="px-4 py-3 text-sm">
-                                  {training.sop.name}{" "}
-                                  <span className="text-xs text-muted-foreground">
-                                    v{training.sop.version}
-                                  </span>
-                                </td>
-                                <td className="px-4 py-3 text-sm">
-                                  <span
-                                    className={`inline-flex px-2 py-1 text-xs rounded-full ${getTrainingStatusColor(
-                                      training.status
-                                    )}/10 ${getTrainingStatusColor(
-                                      training.status
-                                    )}`}
-                                  >
-                                    {getTrainingStatusText(training.status)}
-                                  </span>
-                                </td>
-                                <td className="px-4 py-3 text-sm text-muted-foreground">
-                                  {new Date(
-                                    training.updatedAt
-                                  ).toLocaleDateString()}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
                   </div>
                 </CardContent>

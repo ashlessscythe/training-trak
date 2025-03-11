@@ -81,8 +81,6 @@ export default function AdminTrainingPage() {
     const counts = {
       IN_PROGRESS: 0,
       COMPLETED: 0,
-      APPROVED: 0,
-      REJECTED: 0,
     };
 
     trainings.forEach((training) => {
@@ -92,7 +90,7 @@ export default function AdminTrainingPage() {
     return {
       total,
       ...counts,
-      percentComplete: total ? Math.round((counts.APPROVED / total) * 100) : 0,
+      percentComplete: total ? Math.round((counts.COMPLETED / total) * 100) : 0,
     };
   };
 
@@ -152,26 +150,6 @@ export default function AdminTrainingPage() {
                       )}`}
                     >
                       {stats.COMPLETED}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span>Approved:</span>
-                    <span
-                      className={`font-medium ${getTrainingStatusColor(
-                        "APPROVED" as TrainingStatus
-                      )}`}
-                    >
-                      {stats.APPROVED}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span>Rejected:</span>
-                    <span
-                      className={`font-medium ${getTrainingStatusColor(
-                        "REJECTED" as TrainingStatus
-                      )}`}
-                    >
-                      {stats.REJECTED}
                     </span>
                   </div>
                   <div className="mt-4 pt-4 border-t">
