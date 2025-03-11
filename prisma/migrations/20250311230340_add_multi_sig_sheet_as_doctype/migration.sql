@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "DocumentType" ADD VALUE 'MULTI_SIGNATURE_SHEET';

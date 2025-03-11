@@ -187,6 +187,7 @@ enum TrainingStatus {
 enum DocumentType {
   TRAINING_DOCUMENT
   SIGNATURE_SHEET
+  MULTI_SIGNATURE_SHEET
   SOP_DOCUMENT
   OTHER
 }

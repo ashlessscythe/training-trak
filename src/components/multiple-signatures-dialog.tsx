@@ -46,6 +46,9 @@ export function MultipleSignaturesDialog({
   const [currentTrainingIndex, setCurrentTrainingIndex] = useState(0);
   const [isSignDialogOpen, setIsSignDialogOpen] = useState(false);
   const [completedSignatures, setCompletedSignatures] = useState<string[]>([]);
+  const [signatures, setSignatures] = useState<Map<string, Blob>>(new Map());
+  const [isGeneratingMultiSig, setIsGeneratingMultiSig] = useState(false);
+  const [isSubmissionComplete, setIsSubmissionComplete] = useState(false);
   const { data: session } = useSession();
 
   // Memoize the fetchInProgressSOPs function with useCallback
@@ -121,12 +124,17 @@ export function MultipleSignaturesDialog({
   useEffect(() => {
     if (isOpen) {
       fetchInProgressSOPs();
+      // Reset submission state when dialog opens
+      setIsSubmissionComplete(false);
     } else {
       // Reset state when dialog closes
       setSelectedSopId("");
       setTrainingsToSign([]);
       setCurrentTrainingIndex(0);
       setCompletedSignatures([]);
+      setSignatures(new Map());
+      setIsGeneratingMultiSig(false);
+      setIsSubmissionComplete(false);
     }
   }, [isOpen, fetchInProgressSOPs]); // fetchInProgressSOPs is now memoized
 
@@ -135,6 +143,7 @@ export function MultipleSignaturesDialog({
     async (sopId: string) => {
       setSelectedSopId(sopId);
       setIsLoading(true);
+      setIsSubmissionComplete(false);
 
       try {
         const url = siteId
@@ -164,6 +173,7 @@ export function MultipleSignaturesDialog({
         setTrainingsToSign(Array.from(uniqueTrainings.values()));
         setCurrentTrainingIndex(0);
         setCompletedSignatures([]);
+        setSignatures(new Map());
       } catch (error) {
         console.error("Error fetching trainings for selected SOP:", error);
       } finally {
@@ -179,12 +189,9 @@ export function MultipleSignaturesDialog({
     }
   }, [trainingsToSign]);
 
-  const handleSignatureComplete = useCallback(
-    async (data: {
-      signatureData: string;
-      trainingId: string;
-      trainerName: string;
-    }) => {
+  // Convert generateIndividualPDFs to useCallback and move it before generateAndUploadMultiSignaturePDF
+  const generateIndividualPDFs = useCallback(
+    async (trainerName: string) => {
       try {
         // Import functions dynamically to avoid circular dependencies
         const { generateSignaturePDF } = await import("@/lib/pdf");
@@ -192,6 +199,76 @@ export function MultipleSignaturesDialog({
           "@/lib/document-upload"
         );
 
+        // Generate and upload individual PDFs for each trainee
+        for (const training of trainingsToSign) {
+          const signatureBlob = signatures.get(training.id);
+          if (signatureBlob) {
+            const pdfBlob = await generateSignaturePDF(
+              training,
+              signatureBlob,
+              trainerName
+            );
+            await uploadSignatureDocument(pdfBlob, training, training.id);
+          }
+        }
+      } catch (error) {
+        console.error("Error generating individual PDFs:", error);
+      }
+    },
+    [trainingsToSign, signatures]
+  );
+
+  const generateAndUploadMultiSignaturePDF = useCallback(
+    async (trainerName: string) => {
+      if (signatures.size !== trainingsToSign.length) {
+        console.error("Not all signatures collected");
+        return;
+      }
+
+      setIsGeneratingMultiSig(true);
+      setIsSubmissionComplete(false);
+      try {
+        // Import functions dynamically to avoid circular dependencies
+        const { generateMultiSignaturePDF } = await import("@/lib/pdf");
+        const { uploadMultiSignatureDocument } = await import(
+          "@/lib/document-upload"
+        );
+
+        // Generate a PDF with all signatures
+        const pdfBlob = await generateMultiSignaturePDF(
+          trainingsToSign,
+          signatures,
+          trainerName
+        );
+
+        // Upload the multi-signature document
+        await uploadMultiSignatureDocument(
+          pdfBlob,
+          trainingsToSign,
+          trainingsToSign.map((t) => t.id)
+        );
+
+        // Individual PDFs are no longer generated when a multi-signature PDF is created
+
+        // Mark submission as complete
+        setIsSubmissionComplete(true);
+      } catch (error) {
+        console.error("Error generating multi-signature PDF:", error);
+        alert("Error generating multi-signature document. Please try again.");
+      } finally {
+        setIsGeneratingMultiSig(false);
+      }
+    },
+    [signatures, trainingsToSign]
+  );
+
+  const handleSignatureComplete = useCallback(
+    async (data: {
+      signatureData: string;
+      trainingId: string;
+      trainerName: string;
+    }) => {
+      try {
         // Convert signature data URL to a Blob
         const base64Data = data.signatureData.split(",")[1];
         const signatureBlob = await fetch(
@@ -200,24 +277,15 @@ export function MultipleSignaturesDialog({
 
         const currentTraining = trainingsToSign[currentTrainingIndex];
 
-        // Generate a PDF with the signature
-        const pdfBlob = await generateSignaturePDF(
-          currentTraining,
-          signatureBlob,
-          data.trainerName
-        );
+        // Store the signature blob in the signatures Map
+        const newSignatures = new Map(signatures);
+        newSignatures.set(currentTraining.id, signatureBlob);
+        setSignatures(newSignatures);
 
-        // Upload the signature document
-        await uploadSignatureDocument(
-          pdfBlob,
-          currentTraining,
-          data.trainingId
-        );
-
-        // Add to completed signatures - but don't try to update the training status
+        // Add to completed signatures
         setCompletedSignatures((prev) => [...prev, currentTraining.id]);
 
-        // Move to next training or close if all are done
+        // Move to next training or generate multi-signature PDF if all are done
         if (currentTrainingIndex < trainingsToSign.length - 1) {
           setCurrentTrainingIndex((prev) => prev + 1);
           // Close the current dialog to reset the canvas for the next user
@@ -228,13 +296,21 @@ export function MultipleSignaturesDialog({
           }, 100);
         } else {
           setIsSignDialogOpen(false);
+
+          // Generate and upload multi-signature PDF
+          await generateAndUploadMultiSignaturePDF(data.trainerName);
         }
       } catch (error) {
         console.error("Error processing signature:", error);
         alert("Error saving signature. Please try again.");
       }
     },
-    [currentTrainingIndex, trainingsToSign]
+    [
+      currentTrainingIndex,
+      trainingsToSign,
+      signatures,
+      generateAndUploadMultiSignaturePDF,
+    ]
   );
 
   const getCurrentTraining = useCallback(() => {
@@ -249,10 +325,24 @@ export function MultipleSignaturesDialog({
         </DialogHeader>
 
         <div className="space-y-6">
-          {isLoading ? (
-            <div className="text-center py-4">Loading...</div>
+          {isLoading || isGeneratingMultiSig ? (
+            <div className="text-center py-4">
+              {isGeneratingMultiSig
+                ? "Generating multi-signature document..."
+                : "Loading..."}
+            </div>
           ) : (
             <>
+              {isSubmissionComplete && (
+                <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-md mb-4">
+                  <p className="font-medium">Success!</p>
+                  <p>
+                    Multi-signature document has been generated and saved
+                    successfully.
+                  </p>
+                </div>
+              )}
+
               <div className="space-y-2">
                 <label className="text-sm font-medium">
                   Select SOP with Multiple In-Progress Trainings:
@@ -260,7 +350,10 @@ export function MultipleSignaturesDialog({
                 <Select
                   value={selectedSopId}
                   onValueChange={handleSopSelect}
-                  disabled={Object.keys(inProgressSOPs).length === 0}
+                  disabled={
+                    Object.keys(inProgressSOPs).length === 0 ||
+                    isSubmissionComplete
+                  }
                 >
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Select a SOP" />
@@ -315,16 +408,29 @@ export function MultipleSignaturesDialog({
 
                   <div className="text-sm text-muted-foreground">
                     You will be prompted to sign for each trainee sequentially.
-                    Each signature will be recorded individually.
+                    All signatures will be collected into a single document with
+                    separate signature lines for each trainee.
                   </div>
 
                   <div className="flex justify-end space-x-2">
                     <Button type="button" variant="outline" onClick={onClose}>
                       Cancel
                     </Button>
-                    {completedSignatures.length === trainingsToSign.length ? (
+                    {isSubmissionComplete ? (
                       <Button type="button" onClick={onClose}>
                         Close
+                      </Button>
+                    ) : completedSignatures.length ===
+                      trainingsToSign.length ? (
+                      <Button
+                        type="button"
+                        onClick={() =>
+                          generateAndUploadMultiSignaturePDF(
+                            session?.user?.name || "Unknown Trainer"
+                          )
+                        }
+                      >
+                        Submit
                       </Button>
                     ) : (
                       <Button
