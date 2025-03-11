@@ -5,6 +5,7 @@ import { TrainingDialog } from "@/components/training-dialog";
 import { AssignTrainingDialog } from "@/components/assign-training-dialog";
 import { TrainingViewSelector } from "@/components/training-view-selector";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
+import { getTrainingStatusText } from "@/lib/utils";
 import {
   Select,
   SelectContent,
@@ -13,7 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useTraining } from "@/hooks/useTraining";
-import { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { ChevronRight, ChevronDown } from "lucide-react";
 import { ListView } from "@/components/list-view";
 import { ViewModeToggle } from "@/components/view-mode-toggle";
@@ -112,8 +113,8 @@ export function TrainingList({
       header: "Progress",
       accessor: (groupName: string) => {
         const trainings = groupedTrainings[groupName];
-        const approved = trainings.filter(
-          (t) => t.status === "APPROVED"
+        const completed = trainings.filter(
+          (t) => t.status === "COMPLETED"
         ).length;
         const total = trainings.length;
         return (
@@ -121,11 +122,11 @@ export function TrainingList({
             <div className="w-32 h-2 bg-gray-200 rounded-full overflow-hidden">
               <div
                 className="h-full bg-green-600 transition-all"
-                style={{ width: `${(approved / total) * 100}%` }}
+                style={{ width: `${(completed / total) * 100}%` }}
               />
             </div>
             <span className="text-sm text-muted-foreground">
-              {approved}/{total}
+              {completed}/{total}
             </span>
           </div>
         );
@@ -154,7 +155,7 @@ export function TrainingList({
       header: "Status",
       accessor: (training: any) => (
         <span className={`font-medium ${getStatusColor(training.status)}`}>
-          {training.status.replace("_", " ")}
+          {getTrainingStatusText(training.status)}
         </span>
       ),
       className: "w-32",
@@ -169,11 +170,6 @@ export function TrainingList({
               <div className="text-sm text-muted-foreground">
                 {new Date(training.completedAt).toLocaleDateString()}
               </div>
-            </div>
-          )}
-          {training.approvedBy && (
-            <div className="mt-1 text-sm text-muted-foreground">
-              Approved by {training.approvedBy.name}
             </div>
           )}
         </div>
@@ -206,7 +202,7 @@ export function TrainingList({
         </h3>
         <div className="flex items-center gap-4">
           <span className={`font-medium ${getStatusColor(training.status)}`}>
-            {training.status.replace("_", " ")}
+            {getTrainingStatusText(training.status)}
           </span>
           <Button
             variant="outline"
@@ -227,16 +223,15 @@ export function TrainingList({
             Completed: {new Date(training.completedAt).toLocaleDateString()}
           </p>
         )}
-        {training.approvedBy && (
-          <p>
-            Approved by: {training.approvedBy.name} on{" "}
-            {new Date(training.approvedAt!).toLocaleDateString()}
-          </p>
-        )}
         {training.notes && <p>Notes: {training.notes}</p>}
       </div>
     </Card>
   );
+
+  const statuses = Object.values(TrainingStatus);
+  const displayName = (str: string) => {
+    return str.replace("_", " ");
+  };
 
   return (
     <div className="container mx-auto py-6">
@@ -272,10 +267,11 @@ export function TrainingList({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="ALL">All Statuses</SelectItem>
-              <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
-              <SelectItem value="COMPLETED">Completed</SelectItem>
-              <SelectItem value="APPROVED">Approved</SelectItem>
-              <SelectItem value="REJECTED">Rejected</SelectItem>
+              {statuses.map((s) => (
+                <SelectItem key={s} value={s}>
+                  {displayName(s)}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
 
@@ -324,7 +320,7 @@ export function TrainingList({
             <tbody>
               {Object.entries(groupedTrainings).map(
                 ([groupName, groupTrainings]) => (
-                  <>
+                  <React.Fragment key={`group-${groupName}`}>
                     <tr
                       key={groupName}
                       className="border-b hover:bg-muted/50 cursor-pointer"
@@ -355,7 +351,7 @@ export function TrainingList({
                         </td>
                       </tr>
                     )}
-                  </>
+                  </React.Fragment>
                 )
               )}
             </tbody>

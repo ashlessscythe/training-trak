@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import prisma from "@/lib/prisma";
 
 async function getMetrics(userId: string) {
-  const [assignedSops, trainingProgress, pendingApprovals, recentDocuments] =
+  const [assignedSops, trainingProgress, pendingTrainings, recentDocuments] =
     await Promise.all([
       // Get assigned SOPs count
       prisma.sOP.count({
@@ -25,11 +25,10 @@ async function getMetrics(userId: string) {
           status: true,
         },
       }),
-      // Get pending approvals (for supervisors/admins)
+      // Get pending trainings (for supervisors/admins)
       prisma.trainingProgress.count({
         where: {
-          status: "COMPLETED",
-          approvedById: null,
+          status: "IN_PROGRESS",
         },
       }),
       // Get recent documents
@@ -49,14 +48,14 @@ async function getMetrics(userId: string) {
     ]);
 
   const completedTrainings = trainingProgress.filter(
-    (t) => t.status === "APPROVED"
+    (t) => t.status === "COMPLETED"
   ).length;
 
   return {
     assignedSops,
     completedTrainings,
     totalTrainings: trainingProgress.length,
-    pendingApprovals,
+    pendingTrainings,
     recentDocuments,
   };
 }
@@ -117,7 +116,7 @@ export default async function DashboardPage() {
             <CardTitle>Pending Approvals</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{metrics.pendingApprovals}</p>
+            <p className="text-2xl font-bold">{metrics.pendingTrainings}</p>
           </CardContent>
         </Card>
       </div>

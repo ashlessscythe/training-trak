@@ -85,7 +85,6 @@ model User {
 
   // Relations for different user roles
   uploadedDocs      Document[]         @relation("DocumentUploader")
-  approvedTrainings TrainingProgress[] @relation("TrainingApprover")
   trainings         TrainingProgress[] @relation("Trainee")
   createdSOPs       SOP[]              @relation("SOPCreator")
   lastModifiedSOPs  SOP[]              @relation("SOPLastModifier")
@@ -138,16 +137,12 @@ model TrainingProgress {
   sopId        String
   status       TrainingStatus @default(IN_PROGRESS)
   completedAt  DateTime?
-  approvedBy   User?          @relation("TrainingApprover", fields: [approvedById], references: [id])
-  approvedById String?
-  approvedAt   DateTime?
   notes        String?
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
 
   @@index([userId])
   @@index([sopId])
-  @@index([approvedById])
   @@index([status])
 }
 
@@ -187,8 +182,6 @@ enum Role {
 enum TrainingStatus {
   IN_PROGRESS
   COMPLETED
-  APPROVED
-  REJECTED
 }
 
 enum DocumentType {

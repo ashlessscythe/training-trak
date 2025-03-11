@@ -87,7 +87,7 @@ export function AssignTrainingDialog({
     if (!selectedUser) return new Set<string>();
     const assigned = new Set(
       trainings
-        .filter((t) => t.userId === selectedUser && t.status !== "REJECTED")
+        .filter((t) => t.userId === selectedUser && t.status !== "IN_PROGRESS")
         .map((t) => t.sopId)
     );
     console.log("Assigned SOPs:", Array.from(assigned));

@@ -1,5 +1,5 @@
 import { getServerSession } from "next-auth/next";
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
@@ -34,7 +34,7 @@ export async function GET() {
                 createdSOPs: true,
                 trainings: {
                   where: {
-                    status: "APPROVED",
+                    status: "COMPLETED",
                   },
                 },
               },
@@ -127,7 +127,7 @@ export async function POST(req: NextRequest) {
                 createdSOPs: true,
                 trainings: {
                   where: {
-                    status: "APPROVED",
+                    status: "COMPLETED",
                   },
                 },
               },
@@ -228,7 +228,7 @@ export async function PUT(req: NextRequest) {
                 createdSOPs: true,
                 trainings: {
                   where: {
-                    status: "APPROVED",
+                    status: "COMPLETED",
                   },
                 },
               },
@@ -318,7 +318,7 @@ export async function DELETE(req: NextRequest) {
                 createdSOPs: true,
                 trainings: {
                   where: {
-                    status: "APPROVED",
+                    status: "COMPLETED",
                   },
                 },
               },

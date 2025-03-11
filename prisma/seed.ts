@@ -782,12 +782,7 @@ async function main() {
   );
 
   // Create training progress records
-  const trainingStatuses: TrainingStatus[] = [
-    "IN_PROGRESS",
-    "COMPLETED",
-    "APPROVED",
-    "REJECTED",
-  ];
+  const trainingStatuses: TrainingStatus[] = ["IN_PROGRESS", "COMPLETED"];
 
   await Promise.all(
     Array.from({ length: count * 3 }, async () => {
@@ -809,30 +804,12 @@ async function main() {
       const completedAt =
         status !== "IN_PROGRESS" ? faker.date.past() : undefined;
 
-      // Get approvers from the same site
-      const siteApprovers = siteUsers.filter((u) =>
-        ["OWNER", "ADMIN", "SUPERVISOR", "SITE_ADMIN"].includes(u.role)
-      );
-
-      const approvedBy =
-        status === "APPROVED" && siteApprovers.length > 0
-          ? faker.helpers.arrayElement(siteApprovers)
-          : undefined;
-
       return prisma.trainingProgress.create({
         data: {
           userId: user.id,
           sopId: sop.id,
           status,
           completedAt,
-          approvedById: approvedBy?.id,
-          approvedAt:
-            status === "APPROVED" && completedAt
-              ? faker.date.between({
-                  from: completedAt,
-                  to: new Date(),
-                })
-              : undefined,
           notes: useFaker ? faker.lorem.sentence() : undefined,
         },
       });

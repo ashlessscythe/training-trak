@@ -2,6 +2,7 @@ import { TrainingProgress, TrainingStatus } from "@prisma/client";
 import { useResourceList } from "./useResourceList";
 import { useMemo, useState } from "react";
 import { TrainingViewType } from "@/components/training-view-selector";
+import { getTrainingStatusColor } from "@/lib/utils";
 
 interface TrainingFilters {
   status: TrainingStatus | "ALL";
@@ -156,16 +157,7 @@ export function useTraining({ siteId, userId }: UseTrainingOptions) {
 
   const getStatusColor = useMemo(
     () => (status: TrainingStatus) => {
-      switch (status) {
-        case "APPROVED":
-          return "text-green-600";
-        case "REJECTED":
-          return "text-red-600";
-        case "COMPLETED":
-          return "text-blue-600";
-        default:
-          return "text-yellow-600";
-      }
+      return getTrainingStatusColor(status);
     },
     []
   );

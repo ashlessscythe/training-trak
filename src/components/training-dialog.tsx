@@ -17,6 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useState } from "react";
+import { getTrainingStatusText } from "@/lib/utils";
 
 interface TrainingDialogProps {
   isOpen: boolean;
@@ -47,10 +48,11 @@ export function TrainingDialog({
       id: training?.id,
       status,
       notes,
-      ...(status === "APPROVED" && { approvedAt: new Date().toISOString() }),
       ...(status === "COMPLETED" && { completedAt: new Date().toISOString() }),
     });
   };
+
+  const statuses = Object.values(TrainingStatus);
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -69,10 +71,11 @@ export function TrainingDialog({
                 <SelectValue placeholder="Select status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
-                <SelectItem value="COMPLETED">Completed</SelectItem>
-                <SelectItem value="APPROVED">Approved</SelectItem>
-                <SelectItem value="REJECTED">Rejected</SelectItem>
+                {statuses.map((s) => (
+                  <SelectItem key={s} value={s}>
+                    {getTrainingStatusText(s)}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>

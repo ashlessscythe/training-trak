@@ -44,11 +44,6 @@ export async function GET() {
             },
           },
         },
-        approvedBy: {
-          select: {
-            name: true,
-          },
-        },
       },
       orderBy: {
         createdAt: "desc",
@@ -121,12 +116,6 @@ export async function PUT(req: NextRequest) {
       notes,
     };
 
-    // Add approver info if status is changing to APPROVED
-    if (status === "APPROVED") {
-      updateData.approvedById = currentUser.id;
-      updateData.approvedAt = new Date();
-    }
-
     // Add completion date if status is changing to COMPLETED
     if (status === "COMPLETED") {
       updateData.completedAt = new Date();
@@ -152,11 +141,6 @@ export async function PUT(req: NextRequest) {
           select: {
             name: true,
             version: true,
-          },
-        },
-        approvedBy: {
-          select: {
-            name: true,
           },
         },
       },
