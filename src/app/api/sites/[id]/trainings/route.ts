@@ -31,19 +31,35 @@ export async function GET(
       return NextResponse.json({ error: "Site not found" }, { status: 404 });
     }
 
-    // Get userId from query params if present
+    // Get query params if present
     const { searchParams } = new URL(req.url);
     const userId = searchParams.get("userId");
+    const status = searchParams.get("status");
+    const sopId = searchParams.get("sopId");
+
+    // Build where clause
+    const whereClause: any = {
+      AND: [
+        // Only show trainings where the user belongs to this site
+        { user: { siteId: params.id } },
+      ],
+    };
+
+    // Add filters if provided
+    if (userId) {
+      whereClause.AND.push({ userId });
+    }
+
+    if (status) {
+      whereClause.AND.push({ status });
+    }
+
+    if (sopId) {
+      whereClause.AND.push({ sopId });
+    }
 
     const trainings = await prisma.trainingProgress.findMany({
-      where: {
-        AND: [
-          // Only show trainings where the user belongs to this site
-          { user: { siteId: params.id } },
-          // Add userId filter if provided
-          ...(userId ? [{ userId }] : []),
-        ],
-      },
+      where: whereClause,
       include: {
         user: {
           select: {

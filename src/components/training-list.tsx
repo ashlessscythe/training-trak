@@ -4,6 +4,7 @@ import { TrainingStatus } from "@prisma/client";
 import { TrainingDialog } from "@/components/training-dialog";
 import { SignatureDialog } from "@/components/signature-dialog";
 import { AssignTrainingDialog } from "@/components/assign-training-dialog";
+import { MultipleSignaturesDialog } from "@/components/multiple-signatures-dialog";
 import { TrainingViewSelector } from "@/components/training-view-selector";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { getTrainingStatusText } from "@/lib/utils";
@@ -34,6 +35,8 @@ export function TrainingList({
 }: TrainingListProps) {
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
   const [isSignDialogOpen, setIsSignDialogOpen] = useState(false);
+  const [isMultipleSignDialogOpen, setIsMultipleSignDialogOpen] =
+    useState(false);
   const {
     trainings,
     groupedTrainings,
@@ -273,14 +276,23 @@ export function TrainingList({
 
       <div className="flex justify-between items-center mb-4">
         <div className="flex gap-4">
-          {canAssignTraining && (
+          <div className="flex gap-2">
+            {canAssignTraining && (
+              <Button
+                onClick={() => setIsAssignDialogOpen(true)}
+                className="mb-4"
+              >
+                Assign Training
+              </Button>
+            )}
             <Button
-              onClick={() => setIsAssignDialogOpen(true)}
+              onClick={() => setIsMultipleSignDialogOpen(true)}
               className="mb-4"
+              variant="outline"
             >
-              Assign Training
+              Capture Multiple Signatures
             </Button>
-          )}
+          </div>
           <Select
             value={filters.status || "ALL"}
             onValueChange={(value) =>
@@ -459,6 +471,9 @@ export function TrainingList({
 
             // Show success message
             alert("Signature saved successfully");
+
+            // Refresh the training list
+            fetchTrainings();
           } catch (error) {
             console.error("Error saving signature:", error);
             alert("Error saving signature. Please try again.");
@@ -466,6 +481,15 @@ export function TrainingList({
         }}
         training={selectedTraining}
         title="Sign Training Document"
+      />
+
+      <MultipleSignaturesDialog
+        isOpen={isMultipleSignDialogOpen}
+        onClose={() => {
+          setIsMultipleSignDialogOpen(false);
+          fetchTrainings(); // Refresh the training list after capturing signatures
+        }}
+        siteId={siteId}
       />
     </div>
   );

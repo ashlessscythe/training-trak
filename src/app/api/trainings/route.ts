@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     const session = await getServerSession();
     if (!session?.user?.email) {
@@ -19,7 +19,29 @@ export async function GET() {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
+    // Get query params if present
+    const { searchParams } = new URL(req.url);
+    const status = searchParams.get("status");
+    const sopId = searchParams.get("sopId");
+
+    // Build where clause
+    const whereClause: any = {};
+
+    // Add filters if provided
+    if (status || sopId) {
+      whereClause.AND = [];
+
+      if (status) {
+        whereClause.AND.push({ status });
+      }
+
+      if (sopId) {
+        whereClause.AND.push({ sopId });
+      }
+    }
+
     const trainings = await prisma.trainingProgress.findMany({
+      where: whereClause,
       include: {
         user: {
           select: {
