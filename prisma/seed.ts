@@ -52,7 +52,7 @@ const argv = yargs(hideBin(process.argv))
       default: false,
     },
     force: {
-      description: "Force creation of new data even if data already exists",
+      description: "Force clearing existing data and recreating all seed data",
       type: "boolean",
       default: false,
     },
@@ -82,18 +82,21 @@ async function main() {
   const force = argv.force || false;
   const addSites = argv["add-sites"] || false;
 
-  // Check if data already exists
+  // Check if data already exists beyond just the admin user
   const existingSitesCount = await prisma.site.count();
   const existingUsersCount = await prisma.user.count();
+  const adminUserExists = await prisma.user.findFirst({
+    where: { email: "admin@admin.admin" },
+  });
 
-  if (
-    existingSitesCount > 0 &&
-    existingUsersCount > 0 &&
-    !force &&
-    !argv.clear
-  ) {
+  // Check if we have more than just the admin user
+  const hasOnlyAdminUser = adminUserExists && existingUsersCount === 1;
+  const hasSubstantialData = existingSitesCount > 0 && existingUsersCount > 1;
+
+  // If we have substantial data and no force flag, exit
+  if (hasSubstantialData && !force) {
     console.log(
-      "Database already contains data. Use --force to create additional data or --clear to reset and recreate data."
+      "Database already contains data beyond the admin user. Use --force to clear and recreate all data."
     );
     console.log(
       `Existing data: ${existingSitesCount} sites, ${existingUsersCount} users`
@@ -103,7 +106,8 @@ async function main() {
 
   console.log(`Generating ${count} records per model...`);
 
-  if (argv.clear) {
+  // Clear data if --force is used or --clear is used
+  if (force || argv.clear) {
     console.log("Clearing existing data...");
     await prisma.trainingProgress.deleteMany();
     await prisma.document.deleteMany();
@@ -122,7 +126,7 @@ async function main() {
   // Create sites
   const sites: SiteWithDetails[] = [];
 
-  // Create or use existing default site
+  // Create default site if it doesn't exist
   if (!defaultSite) {
     defaultSite = await prisma.site.create({
       data: {
@@ -136,7 +140,8 @@ async function main() {
   sites.push(defaultSite);
 
   // Get existing sites or create new ones based on the add-sites flag
-  if (count > 1 || force) {
+  // Always proceed if we only have the admin user
+  if (count > 1 || force || hasOnlyAdminUser) {
     if (addSites) {
       // Create additional sites (original behavior)
       const additionalSites = await Promise.all(
@@ -255,7 +260,7 @@ async function main() {
   ];
 
   // Create varied departments and positions for each site
-  if (count > 1 || force) {
+  if (count > 1 || force || hasOnlyAdminUser) {
     for (const site of sites) {
       // Skip default site if we already have default department and position
       if (site.id === defaultSite.id && !force) continue;
@@ -443,7 +448,7 @@ async function main() {
   }
 
   // Create one site admin per site (except for default site and first non-default site which already has joe)
-  if (count > 1 || force) {
+  if (count > 1 || force || hasOnlyAdminUser) {
     for (const site of sites) {
       // Skip the default site and first non-default site
       if (
@@ -497,7 +502,7 @@ async function main() {
   }
 
   // Create other users (skip default site)
-  if (count > 1 || force) {
+  if (count > 1 || force || hasOnlyAdminUser) {
     for (const site of sites) {
       // Skip the default site - only admin user there
       if (site.id === defaultSite.id) continue;
@@ -609,7 +614,7 @@ async function main() {
   // Create SOPs with categories for each site
   const sops: SOPWithCategory[] = [];
 
-  if (count > 0 || force) {
+  if (count > 0 || force || hasOnlyAdminUser) {
     for (const site of sites) {
       // Get users for this site
       const siteUsers = users.filter((user) => user.siteId === site.id);
