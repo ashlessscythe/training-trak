@@ -138,6 +138,7 @@ model TrainingProgress {
   status       TrainingStatus @default(IN_PROGRESS)
   completedAt  DateTime?
   notes        String?
+  isSigned     Boolean        @default(false)
   isHistorical Boolean        @default(false)
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
@@ -183,7 +184,6 @@ enum Role {
 
 enum TrainingStatus {
   IN_PROGRESS
-  SIGNED
   COMPLETED
 }
 

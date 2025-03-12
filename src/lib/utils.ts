@@ -9,13 +9,19 @@ export function cn(...inputs: ClassValue[]) {
 /**
  * Get the color class for a training status
  * This function will automatically work with any status in the TrainingStatus enum
+ * and handles the isSigned boolean separately
  */
-export function getTrainingStatusColor(status: TrainingStatus): string {
+export function getTrainingStatusColor(
+  status: TrainingStatus,
+  isSigned?: boolean
+): string {
+  if (isSigned) {
+    return "text-green-600";
+  }
+
   switch (status) {
     case "COMPLETED":
       return "text-blue-600";
-    case "SIGNED":
-      return "text-green-600";
     case "IN_PROGRESS":
       return "text-yellow-600";
     default:
@@ -27,13 +33,19 @@ export function getTrainingStatusColor(status: TrainingStatus): string {
 /**
  * Get the display text for a training status
  * This function will automatically work with any status in the TrainingStatus enum
+ * and handles the isSigned boolean separately
  */
-export function getTrainingStatusText(status: TrainingStatus): string {
+export function getTrainingStatusText(
+  status: TrainingStatus,
+  isSigned?: boolean
+): string {
+  if (isSigned) {
+    return "Signed";
+  }
+
   switch (status) {
     case "COMPLETED":
       return "Completed";
-    case "SIGNED":
-      return "Signed";
     case "IN_PROGRESS":
       return "In Progress";
     default:
@@ -46,12 +58,17 @@ export function getTrainingStatusText(status: TrainingStatus): string {
  * Get the background color class for a training status
  * This can be used for badges or other UI elements
  */
-export function getTrainingStatusBgColor(status: TrainingStatus): string {
+export function getTrainingStatusBgColor(
+  status: TrainingStatus,
+  isSigned?: boolean
+): string {
+  if (isSigned) {
+    return "bg-green-100";
+  }
+
   switch (status) {
     case "COMPLETED":
       return "bg-blue-100";
-    case "SIGNED":
-      return "bg-green-100";
     case "IN_PROGRESS":
       return "bg-yellow-100";
     default:

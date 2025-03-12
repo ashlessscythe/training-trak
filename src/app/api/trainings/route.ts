@@ -23,12 +23,13 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const status = searchParams.get("status");
     const sopId = searchParams.get("sopId");
+    const isSigned = searchParams.get("isSigned");
 
     // Build where clause
     const whereClause: any = {};
 
     // Add filters if provided
-    if (status || sopId) {
+    if (status || sopId || isSigned) {
       whereClause.AND = [];
 
       if (status) {
@@ -37,6 +38,10 @@ export async function GET(req: NextRequest) {
 
       if (sopId) {
         whereClause.AND.push({ sopId });
+      }
+
+      if (isSigned) {
+        whereClause.AND.push({ isSigned: isSigned === "true" });
       }
     }
 
@@ -98,8 +103,16 @@ export async function PUT(req: NextRequest) {
     }
 
     const data = await req.json();
-    const { id, status, notes, isHistorical, createNewRecord, sopId, userId } =
-      data;
+    const {
+      id,
+      status,
+      notes,
+      isHistorical,
+      createNewRecord,
+      sopId,
+      userId,
+      isSigned,
+    } = data;
 
     if (!id) {
       return NextResponse.json(
@@ -147,6 +160,11 @@ export async function PUT(req: NextRequest) {
     // Add isHistorical flag if provided
     if (isHistorical !== undefined) {
       updateData.isHistorical = isHistorical;
+    }
+
+    // Add isSigned flag if provided
+    if (isSigned !== undefined) {
+      updateData.isSigned = isSigned;
     }
 
     // Start a transaction to handle both updating the existing record

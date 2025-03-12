@@ -1,6 +1,6 @@
 import { TrainingProgress, TrainingStatus } from "@prisma/client";
 import { useResourceList } from "./useResourceList";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useCallback } from "react";
 import { TrainingViewType } from "@/components/training-view-selector";
 import { getTrainingStatusColor } from "@/lib/utils";
 
@@ -31,6 +31,7 @@ export type TrainingWithRelations = TrainingProgress & {
     name: string;
   } | null;
   isHistorical: boolean;
+  isSigned: boolean;
 };
 
 interface UseTrainingOptions {
@@ -47,6 +48,43 @@ export function useTraining({ siteId, userId }: UseTrainingOptions) {
     }
     return base;
   }, [siteId, userId]);
+
+  // Group trainings by type (user, department, or SOP)
+  const groupTrainingsByType = useCallback(
+    (trainingsToGroup: TrainingWithRelations[]) => {
+      switch (viewType) {
+        case "user":
+          return trainingsToGroup.reduce((acc, training) => {
+            const userName = training.user.name;
+            if (!acc[userName]) {
+              acc[userName] = [];
+            }
+            acc[userName].push(training);
+            return acc;
+          }, {} as Record<string, TrainingWithRelations[]>);
+        case "department":
+          return trainingsToGroup.reduce((acc, training) => {
+            const deptName = training.user.department?.name || "No Department";
+            if (!acc[deptName]) {
+              acc[deptName] = [];
+            }
+            acc[deptName].push(training);
+            return acc;
+          }, {} as Record<string, TrainingWithRelations[]>);
+        case "sop":
+        default:
+          return trainingsToGroup.reduce((acc, training) => {
+            const sopName = training.sop.name;
+            if (!acc[sopName]) {
+              acc[sopName] = [];
+            }
+            acc[sopName].push(training);
+            return acc;
+          }, {} as Record<string, TrainingWithRelations[]>);
+      }
+    },
+    [viewType] // Add viewType as a dependency since it's used inside the function
+  );
 
   const filterConfig = useMemo(
     () => ({
@@ -121,60 +159,36 @@ export function useTraining({ siteId, userId }: UseTrainingOptions) {
     handleUpdateResource: handleUpdate,
   } = useResourceList<TrainingWithRelations, TrainingFilters>(resourceOptions);
 
-  // Split trainings into current and historical
+  // Split trainings into current and historical/completed
   const currentTrainings = useMemo(() => {
-    return trainings.filter((training) => !training.isHistorical);
+    return trainings.filter(
+      (training) =>
+        !training.isHistorical &&
+        training.status !== "COMPLETED" &&
+        !training.isSigned
+    );
   }, [trainings]);
 
   const historicalTrainings = useMemo(() => {
-    return trainings.filter((training) => training.isHistorical);
+    return trainings.filter(
+      (training) =>
+        training.isHistorical ||
+        training.status === "COMPLETED" ||
+        training.isSigned
+    );
   }, [trainings]);
-
-  // Group trainings by type (user, department, or SOP)
-  const groupTrainingsByType = (trainingsToGroup: TrainingWithRelations[]) => {
-    switch (viewType) {
-      case "user":
-        return trainingsToGroup.reduce((acc, training) => {
-          const userName = training.user.name;
-          if (!acc[userName]) {
-            acc[userName] = [];
-          }
-          acc[userName].push(training);
-          return acc;
-        }, {} as Record<string, TrainingWithRelations[]>);
-      case "department":
-        return trainingsToGroup.reduce((acc, training) => {
-          const deptName = training.user.department?.name || "No Department";
-          if (!acc[deptName]) {
-            acc[deptName] = [];
-          }
-          acc[deptName].push(training);
-          return acc;
-        }, {} as Record<string, TrainingWithRelations[]>);
-      case "sop":
-      default:
-        return trainingsToGroup.reduce((acc, training) => {
-          const sopName = training.sop.name;
-          if (!acc[sopName]) {
-            acc[sopName] = [];
-          }
-          acc[sopName].push(training);
-          return acc;
-        }, {} as Record<string, TrainingWithRelations[]>);
-    }
-  };
 
   const groupedCurrentTrainings = useMemo(() => {
     return groupTrainingsByType(currentTrainings);
-  }, [currentTrainings, viewType]);
+  }, [currentTrainings, groupTrainingsByType]);
 
   const groupedHistoricalTrainings = useMemo(() => {
     return groupTrainingsByType(historicalTrainings);
-  }, [historicalTrainings, viewType]);
+  }, [historicalTrainings, groupTrainingsByType]);
 
   const getStatusColor = useMemo(
-    () => (status: TrainingStatus) => {
-      return getTrainingStatusColor(status);
+    () => (status: TrainingStatus, isSigned?: boolean) => {
+      return getTrainingStatusColor(status, isSigned);
     },
     []
   );

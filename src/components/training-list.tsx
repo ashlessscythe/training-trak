@@ -17,7 +17,13 @@ import {
 } from "@/components/ui/select";
 import { useTraining } from "@/hooks/useTraining";
 import React, { useEffect, useState, useMemo } from "react";
-import { ChevronRight, ChevronDown } from "lucide-react";
+import {
+  ChevronRight,
+  ChevronDown,
+  CheckCircle,
+  Clock,
+  FileSignature,
+} from "lucide-react";
 import { ListView } from "@/components/list-view";
 import { ViewModeToggle } from "@/components/view-mode-toggle";
 import { useListView } from "@/hooks/useListView";
@@ -38,9 +44,6 @@ export function TrainingList({
   const [isMultipleSignDialogOpen, setIsMultipleSignDialogOpen] =
     useState(false);
   const {
-    trainings,
-    currentTrainings,
-    historicalTrainings,
     groupedCurrentTrainings,
     groupedHistoricalTrainings,
     viewType,
@@ -64,6 +67,89 @@ export function TrainingList({
   const { viewMode, setViewMode, currentView } = useListView();
   const [expandedGroups, setExpandedGroups] = useState<string[]>([]);
   const { canAssignTraining } = useUserPermissions();
+
+  // Create filtered groups for active and completed sections
+  const activeTrainings = useMemo(() => {
+    const result: Record<string, any[]> = {};
+
+    // Include active items from current trainings
+    Object.entries(groupedCurrentTrainings).forEach(
+      ([groupName, trainings]) => {
+        // Filter trainings that are IN_PROGRESS or are SIGNED but not COMPLETED
+        const activeItems = trainings.filter(
+          (t) =>
+            t.status === TrainingStatus.IN_PROGRESS ||
+            (t.isSigned && t.status !== TrainingStatus.COMPLETED)
+        );
+
+        if (activeItems.length > 0) {
+          result[groupName] = activeItems;
+        }
+      }
+    );
+
+    // Also check historical trainings for signed but not completed items
+    Object.entries(groupedHistoricalTrainings).forEach(
+      ([groupName, trainings]) => {
+        // Filter historical trainings that are signed but not completed
+        const activeHistoricalItems = trainings.filter(
+          (t) => t.isSigned && t.status !== TrainingStatus.COMPLETED
+        );
+
+        if (activeHistoricalItems.length > 0) {
+          if (result[groupName]) {
+            result[groupName] = [
+              ...result[groupName],
+              ...activeHistoricalItems,
+            ];
+          } else {
+            result[groupName] = activeHistoricalItems;
+          }
+        }
+      }
+    );
+
+    return result;
+  }, [groupedCurrentTrainings, groupedHistoricalTrainings]);
+
+  const completedTrainings = useMemo(() => {
+    const result: Record<string, any[]> = {};
+
+    // Include completed and signed trainings from current trainings
+    Object.entries(groupedCurrentTrainings).forEach(
+      ([groupName, trainings]) => {
+        const completedItems = trainings.filter(
+          (t) => t.status === TrainingStatus.COMPLETED && t.isSigned
+        );
+
+        if (completedItems.length > 0) {
+          result[groupName] = completedItems;
+        }
+      }
+    );
+
+    // Only include historical trainings that are completed and signed
+    Object.entries(groupedHistoricalTrainings).forEach(
+      ([groupName, trainings]) => {
+        const completedHistoricalItems = trainings.filter(
+          (t) => t.status === TrainingStatus.COMPLETED && t.isSigned
+        );
+
+        if (completedHistoricalItems.length > 0) {
+          if (result[groupName]) {
+            result[groupName] = [
+              ...result[groupName],
+              ...completedHistoricalItems,
+            ];
+          } else {
+            result[groupName] = completedHistoricalItems;
+          }
+        }
+      }
+    );
+
+    return result;
+  }, [groupedCurrentTrainings, groupedHistoricalTrainings]);
 
   useEffect(() => {
     fetchTrainings();
@@ -116,27 +202,36 @@ export function TrainingList({
     },
     {
       header: "Count",
-      accessor: (groupName: string) => {
-        // For the current section, only show count of current trainings
-        return groupedCurrentTrainings[groupName]?.length || 0;
+      accessor: (groupName: string, isActive: boolean) => {
+        // For the active section, show count of active trainings
+        // For the completed section, show count of completed trainings
+        return isActive
+          ? activeTrainings[groupName]?.length || 0
+          : completedTrainings[groupName]?.length || 0;
       },
       className: "w-24",
     },
     {
       header: "Progress",
-      accessor: (groupName: string) => {
-        // For the current section, only use current trainings
-        const trainings = groupedCurrentTrainings[groupName] || [];
+      accessor: (groupName: string, isActive: boolean) => {
+        // For the active section, use active trainings
+        // For the completed section, use completed trainings
+        const trainings = isActive
+          ? activeTrainings[groupName] || []
+          : completedTrainings[groupName] || [];
 
         const completed = trainings.filter(
-          (t: any) => t.status === "COMPLETED" || t.status === "SIGNED"
+          (t: any) => t.status === "COMPLETED" && t.isSigned
         ).length;
         const total = trainings.length || 1; // Avoid division by zero
+
         return (
           <div className="flex items-center gap-2">
             <div className="w-32 h-2 bg-gray-200 rounded-full overflow-hidden">
               <div
-                className="h-full bg-green-600 transition-all"
+                className={`h-full ${
+                  isActive ? "bg-green-600" : "bg-blue-600"
+                } transition-all`}
                 style={{ width: `${(completed / total) * 100}%` }}
               />
             </div>
@@ -169,9 +264,25 @@ export function TrainingList({
     {
       header: "Status",
       accessor: (training: any) => (
-        <span className={`font-medium ${getStatusColor(training.status)}`}>
-          {getTrainingStatusText(training.status)}
-        </span>
+        <div className="flex items-center gap-2">
+          {training.status === TrainingStatus.COMPLETED && (
+            <CheckCircle className="h-4 w-4 text-green-500" />
+          )}
+          {training.status === TrainingStatus.IN_PROGRESS && (
+            <Clock className="h-4 w-4 text-amber-500" />
+          )}
+          {training.isSigned && (
+            <FileSignature className="h-4 w-4 text-blue-500" />
+          )}
+          <span
+            className={`font-medium ${getStatusColor(
+              training.status,
+              training.isSigned
+            )}`}
+          >
+            {getTrainingStatusText(training.status, training.isSigned)}
+          </span>
+        </div>
       ),
       className: "w-32",
     },
@@ -228,9 +339,25 @@ export function TrainingList({
           {training.sop.name} v{training.sop.version}
         </h3>
         <div className="flex flex-col gap-2">
-          <span className={`font-medium ${getStatusColor(training.status)}`}>
-            {getTrainingStatusText(training.status)}
-          </span>
+          <div className="flex items-center gap-2">
+            {training.status === TrainingStatus.COMPLETED && (
+              <CheckCircle className="h-4 w-4 text-green-500" />
+            )}
+            {training.status === TrainingStatus.IN_PROGRESS && (
+              <Clock className="h-4 w-4 text-amber-500" />
+            )}
+            {training.isSigned && (
+              <FileSignature className="h-4 w-4 text-blue-500" />
+            )}
+            <span
+              className={`font-medium ${getStatusColor(
+                training.status,
+                training.isSigned
+              )}`}
+            >
+              {getTrainingStatusText(training.status, training.isSigned)}
+            </span>
+          </div>
           <div className="flex gap-2">
             <Button
               variant="outline"
@@ -348,9 +475,25 @@ export function TrainingList({
         </div>
       </div>
 
-      {/* In Progress & Signed Section */}
+      {/* Status Legend */}
+      <div className="flex gap-4 mb-4">
+        <div className="flex items-center gap-1">
+          <Clock className="h-4 w-4 text-amber-500" />
+          <span className="text-sm">In Progress</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <CheckCircle className="h-4 w-4 text-green-500" />
+          <span className="text-sm">Completed</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <FileSignature className="h-4 w-4 text-blue-500" />
+          <span className="text-sm">Signed</span>
+        </div>
+      </div>
+
+      {/* Active Section (In Progress and/or Signed) */}
       <div className="mb-8">
-        <h2 className="text-xl font-semibold mb-4">In Progress & Signed</h2>
+        <h2 className="text-xl font-semibold mb-4">Active Trainings</h2>
         <div className="rounded-md border">
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -369,24 +512,24 @@ export function TrainingList({
                 </tr>
               </thead>
               <tbody>
-                {Object.entries(groupedCurrentTrainings).map(
+                {Object.entries(activeTrainings).map(
                   ([groupName, groupTrainings]) => (
-                    <React.Fragment key={`current-group-${groupName}`}>
+                    <React.Fragment key={`active-group-${groupName}`}>
                       <tr
                         key={groupName}
                         className="border-b hover:bg-muted/50 cursor-pointer"
-                        onClick={() => toggleGroup(`current-${groupName}`)}
+                        onClick={() => toggleGroup(`active-${groupName}`)}
                       >
                         {parentColumns.map((column, index) => (
                           <td
                             key={index}
                             className={`px-4 py-3 ${column.className || ""}`}
                           >
-                            {column.accessor(groupName)}
+                            {column.accessor(groupName, true)}
                           </td>
                         ))}
                       </tr>
-                      {expandedGroups.includes(`current-${groupName}`) && (
+                      {expandedGroups.includes(`active-${groupName}`) && (
                         <tr>
                           <td colSpan={parentColumns.length} className="p-0">
                             <div className="border-l-2 border-l-primary/20 ml-3">
@@ -396,7 +539,7 @@ export function TrainingList({
                                 view="table"
                                 renderCard={renderCard}
                                 keyExtractor={(training) => training.id}
-                                emptyMessage="No training records found."
+                                emptyMessage="No active training records found."
                               />
                             </div>
                           </td>
@@ -405,7 +548,7 @@ export function TrainingList({
                     </React.Fragment>
                   )
                 )}
-                {Object.keys(groupedCurrentTrainings).length === 0 && (
+                {Object.keys(activeTrainings).length === 0 && (
                   <tr>
                     <td
                       colSpan={parentColumns.length}
@@ -421,52 +564,17 @@ export function TrainingList({
         </div>
       </div>
 
-      {/* Completed Section */}
+      {/* Completed and Signed Section */}
       <div>
-        <h2 className="text-xl font-semibold mb-4">Completed</h2>
+        <h2 className="text-xl font-semibold mb-4">
+          Completed & Signed Trainings
+        </h2>
         <div className="rounded-md border">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="border-b bg-muted/50">
-                  {/* Create a modified version of parentColumns for the historical section */}
-                  {[
-                    parentColumns[0],
-                    {
-                      header: "Count",
-                      accessor: (groupName: string) => {
-                        // For the historical section, only show count of historical trainings
-                        return (
-                          groupedHistoricalTrainings[groupName]?.length || 0
-                        );
-                      },
-                      className: "w-24",
-                    },
-                    {
-                      header: "Progress",
-                      accessor: (groupName: string) => {
-                        // For the historical section, all trainings are completed
-                        const trainings =
-                          groupedHistoricalTrainings[groupName] || [];
-                        const total = trainings.length || 1;
-
-                        return (
-                          <div className="flex items-center gap-2">
-                            <div className="w-32 h-2 bg-gray-200 rounded-full overflow-hidden">
-                              <div
-                                className="h-full bg-blue-600 transition-all"
-                                style={{ width: "100%" }}
-                              />
-                            </div>
-                            <span className="text-sm text-muted-foreground">
-                              {total}/{total}
-                            </span>
-                          </div>
-                        );
-                      },
-                      className: "w-48",
-                    },
-                  ].map((column, index) => (
+                  {parentColumns.map((column, index) => (
                     <th
                       key={index}
                       className={`px-4 py-3 text-left text-sm font-medium ${
@@ -479,60 +587,24 @@ export function TrainingList({
                 </tr>
               </thead>
               <tbody>
-                {Object.entries(groupedHistoricalTrainings).map(
+                {Object.entries(completedTrainings).map(
                   ([groupName, groupTrainings]) => (
-                    <React.Fragment key={`historical-group-${groupName}`}>
+                    <React.Fragment key={`completed-group-${groupName}`}>
                       <tr
                         key={groupName}
                         className="border-b hover:bg-muted/50 cursor-pointer"
-                        onClick={() => toggleGroup(`historical-${groupName}`)}
+                        onClick={() => toggleGroup(`completed-${groupName}`)}
                       >
-                        {/* Use the same modified columns for the row data */}
-                        {[
-                          parentColumns[0],
-                          {
-                            header: "Count",
-                            accessor: (groupName: string) => {
-                              return (
-                                groupedHistoricalTrainings[groupName]?.length ||
-                                0
-                              );
-                            },
-                            className: "w-24",
-                          },
-                          {
-                            header: "Progress",
-                            accessor: (groupName: string) => {
-                              const trainings =
-                                groupedHistoricalTrainings[groupName] || [];
-                              const total = trainings.length || 1;
-
-                              return (
-                                <div className="flex items-center gap-2">
-                                  <div className="w-32 h-2 bg-gray-200 rounded-full overflow-hidden">
-                                    <div
-                                      className="h-full bg-blue-600 transition-all"
-                                      style={{ width: "100%" }}
-                                    />
-                                  </div>
-                                  <span className="text-sm text-muted-foreground">
-                                    {total}/{total}
-                                  </span>
-                                </div>
-                              );
-                            },
-                            className: "w-48",
-                          },
-                        ].map((column, index) => (
+                        {parentColumns.map((column, index) => (
                           <td
                             key={index}
                             className={`px-4 py-3 ${column.className || ""}`}
                           >
-                            {column.accessor(groupName)}
+                            {column.accessor(groupName, false)}
                           </td>
                         ))}
                       </tr>
-                      {expandedGroups.includes(`historical-${groupName}`) && (
+                      {expandedGroups.includes(`completed-${groupName}`) && (
                         <tr>
                           <td colSpan={parentColumns.length} className="p-0">
                             <div className="border-l-2 border-l-primary/20 ml-3">
@@ -542,7 +614,7 @@ export function TrainingList({
                                 view="table"
                                 renderCard={renderCard}
                                 keyExtractor={(training) => training.id}
-                                emptyMessage="No historical training records found."
+                                emptyMessage="No completed training records found."
                               />
                             </div>
                           </td>
@@ -551,13 +623,13 @@ export function TrainingList({
                     </React.Fragment>
                   )
                 )}
-                {Object.keys(groupedHistoricalTrainings).length === 0 && (
+                {Object.keys(completedTrainings).length === 0 && (
                   <tr>
                     <td
                       colSpan={parentColumns.length}
                       className="p-4 text-center"
                     >
-                      No completed historical training records found.
+                      No completed and signed training records found.
                     </td>
                   </tr>
                 )}
