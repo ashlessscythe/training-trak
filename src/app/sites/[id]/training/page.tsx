@@ -1,13 +1,11 @@
 "use client";
 
 import { TrainingList } from "@/components/training-list";
+import { useParams } from "next/navigation";
 
-interface TrainingPageProps {
-  params: {
-    id: string;
-  };
-}
+export default function TrainingPage() {
+  const params = useParams();
+  const id = params.id as string;
 
-export default function TrainingPage({ params }: TrainingPageProps) {
-  return <TrainingList siteId={params.id} />;
+  return <TrainingList siteId={id} />;
 }

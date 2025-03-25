@@ -3,11 +3,9 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { DocumentType } from "@prisma/client";
+import { getIdFromReq } from "@/lib/utils";
 
-export async function GET(
-  req: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function GET(req: NextRequest) {
   try {
     const session = await getServerSession();
     if (!session?.user?.email) {
@@ -24,16 +22,24 @@ export async function GET(
     }
 
     // Check if user has access to this site
+    const siteId = getIdFromReq(req);
+    if (!siteId) {
+      return NextResponse.json(
+        { error: "Site ID is required" },
+        { status: 400 }
+      );
+    }
+
     if (
       !["OWNER", "ADMIN"].includes(currentUser.role) &&
-      currentUser.siteId !== params.id
+      currentUser.siteId !== siteId
     ) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const documents = await prisma.document.findMany({
       where: {
-        siteId: params.id,
+        siteId: siteId,
       },
       include: {
         uploadedBy: {
@@ -67,10 +73,7 @@ export async function GET(
   }
 }
 
-export async function POST(
-  req: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function POST(req: NextRequest) {
   try {
     const session = await getServerSession();
     if (!session?.user?.email) {
@@ -91,9 +94,17 @@ export async function POST(
     }
 
     // Check if user has access to this site
+    const siteId = getIdFromReq(req);
+    if (!siteId) {
+      return NextResponse.json(
+        { error: "Site ID is required" },
+        { status: 400 }
+      );
+    }
+
     if (
       !["OWNER", "ADMIN"].includes(currentUser.role) &&
-      currentUser.siteId !== params.id
+      currentUser.siteId !== siteId
     ) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
@@ -131,7 +142,7 @@ export async function POST(
         metadata,
         sopId: sopId || undefined,
         uploadedById: currentUser.id,
-        siteId: params.id,
+        siteId: siteId,
       },
       include: {
         uploadedBy: {
@@ -163,10 +174,7 @@ export async function POST(
   }
 }
 
-export async function PUT(
-  req: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function PUT(req: NextRequest) {
   try {
     const session = await getServerSession();
     if (!session?.user?.email) {
@@ -187,9 +195,17 @@ export async function PUT(
     }
 
     // Check if user has access to this site
+    const siteId = getIdFromReq(req);
+    if (!siteId) {
+      return NextResponse.json(
+        { error: "Site ID is required" },
+        { status: 400 }
+      );
+    }
+
     if (
       !["OWNER", "ADMIN"].includes(currentUser.role) &&
-      currentUser.siteId !== params.id
+      currentUser.siteId !== siteId
     ) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
@@ -219,7 +235,7 @@ export async function PUT(
       },
     });
 
-    if (!existingDocument || existingDocument.siteId !== params.id) {
+    if (!existingDocument || existingDocument.siteId !== siteId) {
       return NextResponse.json(
         { error: "Document not found" },
         { status: 404 }
@@ -291,10 +307,7 @@ export async function PUT(
   }
 }
 
-export async function DELETE(
-  req: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function DELETE(req: NextRequest) {
   try {
     const session = await getServerSession();
     if (!session?.user?.email) {
@@ -315,9 +328,17 @@ export async function DELETE(
     }
 
     // Check if user has access to this site
+    const siteId = getIdFromReq(req);
+    if (!siteId) {
+      return NextResponse.json(
+        { error: "Site ID is required" },
+        { status: 400 }
+      );
+    }
+
     if (
       !["OWNER", "ADMIN"].includes(currentUser.role) &&
-      currentUser.siteId !== params.id
+      currentUser.siteId !== siteId
     ) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
@@ -340,7 +361,7 @@ export async function DELETE(
       },
     });
 
-    if (!document || document.siteId !== params.id) {
+    if (!document || document.siteId !== siteId) {
       return NextResponse.json(
         { error: "Document not found" },
         { status: 404 }

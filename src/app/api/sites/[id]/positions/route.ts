@@ -1,23 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 import prisma from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { getIdFromReq } from "@/lib/utils";
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     if (!session) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
+    // Get the site ID using our utility function
+    const siteId = getIdFromReq(request);
+    if (!siteId) {
+      return new NextResponse("Site ID is required", { status: 400 });
+    }
+
     const positions = await prisma.position.findMany({
       where: {
         site: {
-          id: params.id,
+          id: siteId,
         },
       },
       orderBy: {
@@ -44,10 +48,7 @@ export async function GET(
   }
 }
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     if (!session) {
@@ -56,13 +57,14 @@ export async function POST(
 
     const data = await request.json();
 
+    const siteId = getIdFromReq(request);
     const position = await prisma.position.create({
       data: {
         name: data.name,
         description: data.description,
         isActive: true,
         site: {
-          connect: { id: params.id },
+          connect: { id: siteId },
         },
         sops: data.sopIds?.length
           ? {
@@ -95,10 +97,7 @@ export async function POST(
   }
 }
 
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function PUT(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     if (!session) {
@@ -106,12 +105,13 @@ export async function PUT(
     }
 
     const data = await request.json();
+    const siteId = getIdFromReq(request);
 
     const position = await prisma.position.update({
       where: {
         id: data.id,
         site: {
-          id: params.id,
+          id: siteId,
         },
       },
       data: {
@@ -147,10 +147,7 @@ export async function PUT(
   }
 }
 
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function DELETE(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     if (!session) {
@@ -164,11 +161,12 @@ export async function DELETE(
       return new NextResponse("Position ID is required", { status: 400 });
     }
 
+    const siteId = getIdFromReq(request);
     const position = await prisma.position.delete({
       where: {
         id: positionId,
         site: {
-          id: params.id,
+          id: siteId,
         },
       },
       include: {

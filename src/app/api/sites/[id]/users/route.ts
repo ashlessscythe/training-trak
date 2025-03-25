@@ -4,11 +4,9 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { hash } from "bcrypt";
 import { EmailService } from "@/lib/email";
+import { getIdFromReq } from "@/lib/utils";
 
-export async function GET(
-  req: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function GET(req: NextRequest) {
   try {
     const session = await getServerSession();
     if (!session?.user?.email) {
@@ -25,13 +23,14 @@ export async function GET(
     }
 
     // Allow ADMIN/OWNER access to any site, but SITE_ADMIN only to their site
-    if (currentUser.role === "SITE_ADMIN" && currentUser.siteId !== params.id) {
+    const siteId = getIdFromReq(req);
+    if (currentUser.role === "SITE_ADMIN" && currentUser.siteId !== siteId) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const users = await prisma.user.findMany({
       where: {
-        siteId: params.id,
+        siteId: siteId,
       },
       include: {
         site: true,
@@ -72,10 +71,7 @@ export async function GET(
   }
 }
 
-export async function POST(
-  req: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function POST(req: NextRequest) {
   try {
     const session = await getServerSession();
     if (!session?.user?.email) {
@@ -92,7 +88,8 @@ export async function POST(
     }
 
     // Allow ADMIN/OWNER access to any site, but SITE_ADMIN only to their site
-    if (currentUser.role === "SITE_ADMIN" && currentUser.siteId !== params.id) {
+    const reqSiteId = getIdFromReq(req);
+    if (currentUser.role === "SITE_ADMIN" && currentUser.siteId !== reqSiteId) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -135,7 +132,7 @@ export async function POST(
     const hashedPassword = await hash(password, 10);
 
     // Use the siteId from the request body if provided, otherwise use the site ID from the URL
-    const userSiteId = siteId || params.id;
+    const userSiteId = siteId || reqSiteId;
 
     const user = await prisma.user.create({
       data: {
@@ -167,10 +164,7 @@ export async function POST(
   }
 }
 
-export async function PUT(
-  req: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function PUT(req: NextRequest) {
   try {
     const session = await getServerSession();
     if (!session?.user?.email) {
@@ -187,7 +181,8 @@ export async function PUT(
     }
 
     // Allow ADMIN/OWNER access to any site, but SITE_ADMIN only to their site
-    if (currentUser.role === "SITE_ADMIN" && currentUser.siteId !== params.id) {
+    const reqSiteId = getIdFromReq(req);
+    if (currentUser.role === "SITE_ADMIN" && currentUser.siteId !== reqSiteId) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -219,7 +214,7 @@ export async function PUT(
       select: { siteId: true, role: true },
     });
 
-    if (!targetUser || targetUser.siteId !== params.id) {
+    if (!targetUser || targetUser.siteId !== reqSiteId) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
@@ -303,10 +298,7 @@ export async function PUT(
   }
 }
 
-export async function DELETE(
-  req: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function DELETE(req: NextRequest) {
   try {
     const session = await getServerSession();
     if (!session?.user?.email) {
@@ -323,7 +315,8 @@ export async function DELETE(
     }
 
     // Allow ADMIN/OWNER access to any site, but SITE_ADMIN only to their site
-    if (currentUser.role === "SITE_ADMIN" && currentUser.siteId !== params.id) {
+    const reqSiteId = getIdFromReq(req);
+    if (currentUser.role === "SITE_ADMIN" && currentUser.siteId !== reqSiteId) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -343,7 +336,7 @@ export async function DELETE(
       select: { siteId: true, role: true },
     });
 
-    if (!targetUser || targetUser.siteId !== params.id) {
+    if (!targetUser || targetUser.siteId !== reqSiteId) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 

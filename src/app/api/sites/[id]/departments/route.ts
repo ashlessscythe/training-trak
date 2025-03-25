@@ -1,23 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 import prisma from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     if (!session) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
+    const id = request.nextUrl.pathname.split("/")[3];
+
     const departments = await prisma.department.findMany({
       where: {
         site: {
-          id: params.id,
+          id: id,
         },
       },
       orderBy: {
@@ -35,10 +34,7 @@ export async function GET(
   }
 }
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     if (!session) {
@@ -47,13 +43,15 @@ export async function POST(
 
     const data = await request.json();
 
+    const id = request.nextUrl.pathname.split("/")[3];
+
     const department = await prisma.department.create({
       data: {
         name: data.name,
         description: data.description,
         isActive: true,
         site: {
-          connect: { id: params.id },
+          connect: { id },
         },
       },
       include: {
@@ -73,10 +71,7 @@ export async function POST(
   }
 }
 
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function PUT(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     if (!session) {
@@ -85,11 +80,13 @@ export async function PUT(
 
     const data = await request.json();
 
+    const id = request.nextUrl.pathname.split("/")[3];
+
     const department = await prisma.department.update({
       where: {
         id: data.id,
         site: {
-          id: params.id,
+          id: id,
         },
       },
       data: {
@@ -114,10 +111,7 @@ export async function PUT(
   }
 }
 
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function DELETE(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     if (!session) {
@@ -131,11 +125,13 @@ export async function DELETE(
       return new NextResponse("Department ID is required", { status: 400 });
     }
 
+    const id = request.nextUrl.pathname.split("/")[3];
+
     const department = await prisma.department.delete({
       where: {
         id: departmentId,
         site: {
-          id: params.id,
+          id: id,
         },
       },
       include: {

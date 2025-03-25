@@ -2,6 +2,7 @@ import { getServerSession } from "next-auth/next";
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { getIdFromReq } from "@/lib/utils";
 
 async function checkUserAccess(siteId: string, requiresWrite = false) {
   const session = await getServerSession();
@@ -37,12 +38,9 @@ async function checkUserAccess(siteId: string, requiresWrite = false) {
   return { currentUser };
 }
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function GET(request: NextRequest) {
   try {
-    const { id: siteId } = params;
+    const siteId = getIdFromReq(request);
     const access = await checkUserAccess(siteId);
     if ("error" in access) {
       return NextResponse.json(
@@ -143,12 +141,9 @@ export async function GET(
   }
 }
 
-export async function POST(
-  req: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function POST(req: NextRequest) {
   try {
-    const { id: siteId } = params;
+    const siteId = getIdFromReq(req);
     const access = await checkUserAccess(siteId, true);
     if ("error" in access) {
       return NextResponse.json(
@@ -263,12 +258,9 @@ export async function POST(
   }
 }
 
-export async function PUT(
-  req: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function PUT(req: NextRequest) {
   try {
-    const { id: siteId } = params;
+    const siteId = getIdFromReq(req);
     const access = await checkUserAccess(siteId, true);
     if ("error" in access) {
       return NextResponse.json(
@@ -425,12 +417,9 @@ export async function PUT(
   }
 }
 
-export async function DELETE(
-  req: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function DELETE(req: NextRequest) {
   try {
-    const { id: siteId } = params;
+    const siteId = getIdFromReq(req);
     const access = await checkUserAccess(siteId, true);
     if ("error" in access) {
       return NextResponse.json(

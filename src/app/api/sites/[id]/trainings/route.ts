@@ -2,11 +2,9 @@ import { getServerSession } from "next-auth/next";
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { getIdFromReq } from "@/lib/utils";
 
-export async function GET(
-  req: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function GET(req: NextRequest) {
   try {
     const session = await getServerSession();
     if (!session?.user?.email) {
@@ -23,8 +21,9 @@ export async function GET(
     }
 
     // Verify site exists
+    const siteId = getIdFromReq(req);
     const site = await prisma.site.findUnique({
-      where: { id: params.id },
+      where: { id: siteId },
     });
 
     if (!site) {
@@ -41,7 +40,7 @@ export async function GET(
     const whereClause: any = {
       AND: [
         // Only show trainings where the user belongs to this site
-        { user: { siteId: params.id } },
+        { user: { siteId: siteId } },
       ],
     };
 
@@ -99,10 +98,7 @@ export async function GET(
   }
 }
 
-export async function POST(
-  req: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function POST(req: NextRequest) {
   try {
     const session = await getServerSession();
     if (!session?.user?.email) {
@@ -119,9 +115,10 @@ export async function POST(
     }
 
     // Only allow site admins, admins, and owners to assign training
+    const siteId = getIdFromReq(req);
     if (
       !["SITE_ADMIN", "ADMIN", "OWNER"].includes(currentUser.role) ||
-      (currentUser.role === "SITE_ADMIN" && currentUser.siteId !== params.id)
+      (currentUser.role === "SITE_ADMIN" && currentUser.siteId !== siteId)
     ) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
@@ -142,7 +139,7 @@ export async function POST(
       select: { siteId: true },
     });
 
-    if (!user || user.siteId !== params.id) {
+    if (!user || user.siteId !== siteId) {
       return NextResponse.json(
         { error: "User not found or not in this site" },
         { status: 404 }
@@ -197,10 +194,7 @@ export async function POST(
   }
 }
 
-export async function PUT(
-  req: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function PUT(req: NextRequest) {
   try {
     const session = await getServerSession();
     if (!session?.user?.email) {
@@ -244,7 +238,8 @@ export async function PUT(
     }
 
     // Verify the training belongs to this site
-    if (training.user.siteId !== params.id) {
+    const siteId = getIdFromReq(req);
+    if (training.user.siteId !== siteId) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

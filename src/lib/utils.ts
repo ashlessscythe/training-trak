@@ -1,6 +1,7 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { TrainingStatus } from "@prisma/client";
+import { NextRequest } from "next/server";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -75,3 +76,7 @@ export function getTrainingStatusBgColor(
       return "bg-gray-100";
   }
 }
+
+export const getIdFromReq = (req: NextRequest, n = 3) => {
+  return req.nextUrl.pathname.split("/")[n];
+};

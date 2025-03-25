@@ -3,10 +3,7 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
-export async function GET(
-  req: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function GET(req: NextRequest) {
   try {
     const session = await getServerSession();
     if (!session?.user?.email) {
@@ -26,8 +23,11 @@ export async function GET(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
+    // kinda hacky but works, ig
+    const id = req.nextUrl.pathname.split("/")[3];
+
     const document = await prisma.document.findUnique({
-      where: { id: params.id },
+      where: { id: id },
       select: {
         content: true,
         name: true,
