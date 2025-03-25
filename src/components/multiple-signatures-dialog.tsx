@@ -220,10 +220,14 @@ export function MultipleSignaturesDialog({
     [trainingsToSign, signatures]
   );
 
-  const generateAndUploadMultiSignaturePDF = useCallback(
-    async (trainerName: string) => {
-      if (signatures.size !== trainingsToSign.length) {
-        console.error("Not all signatures collected");
+  // Helper function that takes the updated signatures array directly
+  const generateMultiSignaturePDFWithSignatures = useCallback(
+    async (trainerName: string, updatedSignatures: string[]) => {
+      // Check if we have all signatures
+      if (updatedSignatures.length !== trainingsToSign.length) {
+        console.error(
+          `Not all signatures collected: ${updatedSignatures.length} of ${trainingsToSign.length}`
+        );
         return;
       }
 
@@ -250,7 +254,18 @@ export function MultipleSignaturesDialog({
           trainingsToSign.map((t) => t.id)
         );
 
-        // Individual PDFs are no longer generated when a multi-signature PDF is created
+        // Mark all trainings as signed
+        for (const training of trainingsToSign) {
+          await fetch("/api/trainings", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              id: training.id,
+              isSigned: true,
+              notes: `Signed by ${trainerName} on ${new Date().toLocaleDateString()} (multi-signature process)`,
+            }),
+          });
+        }
 
         // Mark submission as complete
         setIsSubmissionComplete(true);
@@ -262,6 +277,18 @@ export function MultipleSignaturesDialog({
       }
     },
     [signatures, trainingsToSign]
+  );
+
+  // Original function that uses the state directly - keep for the Submit button
+  const generateAndUploadMultiSignaturePDF = useCallback(
+    async (trainerName: string) => {
+      // Use the helper function with the current state
+      await generateMultiSignaturePDFWithSignatures(
+        trainerName,
+        completedSignatures
+      );
+    },
+    [completedSignatures, generateMultiSignaturePDFWithSignatures]
   );
 
   const handleSignatureComplete = useCallback(
@@ -284,10 +311,14 @@ export function MultipleSignaturesDialog({
         newSignatures.set(currentTraining.id, signatureBlob);
         setSignatures(newSignatures);
 
-        // Add to completed signatures
-        setCompletedSignatures((prev) => [...prev, currentTraining.id]);
+        // Add to completed signatures and store in a local variable to use immediately
+        const updatedCompletedSignatures = [
+          ...completedSignatures,
+          currentTraining.id,
+        ];
+        setCompletedSignatures(updatedCompletedSignatures);
 
-        // Move to next training or generate multi-signature PDF if all are done
+        // Move to next training or close dialog if all are done
         if (currentTrainingIndex < trainingsToSign.length - 1) {
           setCurrentTrainingIndex((prev) => prev + 1);
           // Close the current dialog to reset the canvas for the next user
@@ -297,35 +328,16 @@ export function MultipleSignaturesDialog({
             setIsSignDialogOpen(true);
           }, 100);
         } else {
+          // All signatures collected, close the dialog
           setIsSignDialogOpen(false);
-
-          // Update the training to mark it as signed
-          await fetch("/api/trainings", {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              id: currentTraining.id,
-              isSigned: true,
-              notes: `Signed by ${
-                data.trainerName
-              } on ${new Date().toLocaleDateString()} (multi-signature process)`,
-            }),
-          });
-
-          // Generate and upload multi-signature PDF
-          await generateAndUploadMultiSignaturePDF(data.trainerName);
+          // Do NOT automatically generate PDF here - wait for user to click Submit
         }
       } catch (error) {
         console.error("Error processing signature:", error);
         alert("Error saving signature. Please try again.");
       }
     },
-    [
-      currentTrainingIndex,
-      trainingsToSign,
-      signatures,
-      generateAndUploadMultiSignaturePDF,
-    ]
+    [currentTrainingIndex, trainingsToSign, signatures, completedSignatures]
   );
 
   const getCurrentTraining = useCallback(() => {
@@ -422,9 +434,9 @@ export function MultipleSignaturesDialog({
                   </div>
 
                   <div className="text-sm text-muted-foreground">
-                    You will be prompted to sign for each trainee sequentially.
-                    All signatures will be collected into a single document with
-                    separate signature lines for each trainee.
+                    {completedSignatures.length === trainingsToSign.length
+                      ? "All signatures collected. Click Submit to generate the multi-signature document."
+                      : "You will be prompted to sign for each trainee sequentially. After collecting all signatures, click Submit to generate the document."}
                   </div>
 
                   <div className="flex justify-end space-x-2">
@@ -453,7 +465,9 @@ export function MultipleSignaturesDialog({
                         onClick={startSignatureProcess}
                         disabled={trainingsToSign.length === 0}
                       >
-                        Start Signing Process
+                        {completedSignatures.length > 0
+                          ? "Continue Signing"
+                          : "Start Signing Process"}
                       </Button>
                     )}
                   </div>
