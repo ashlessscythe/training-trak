@@ -16,6 +16,37 @@ export interface SignatureData {
 }
 
 /**
+ * Renders wrapped text centered within a cell
+ * @param doc The jsPDF document instance
+ * @param text The text to wrap and render
+ * @param x The x-coordinate of the center of the text
+ * @param yPos The y-coordinate of the top of the cell
+ * @param cellHeight The height of the cell
+ * @param maxWidth The maximum width for the text
+ */
+const renderWrappedText = (
+  doc: jsPDF,
+  text: string,
+  x: number,
+  yPos: number,
+  cellHeight: number,
+  maxWidth: number
+): void => {
+  // Wrap text to fit within the specified width
+  const lines = doc.splitTextToSize(text, maxWidth);
+
+  // Calculate vertical position to center the text based on number of lines
+  const lineHeight = 3; // Approximate line height
+  const totalTextHeight = lines.length * lineHeight;
+  const startY = yPos + cellHeight / 2 - totalTextHeight / 2 + lineHeight;
+
+  // Draw each line of the wrapped text
+  lines.forEach((line: string, index: number) => {
+    doc.text(line, x, startY + index * lineHeight, { align: "center" });
+  });
+};
+
+/**
  * Generates a PDF with multiple signature lines for multiple trainees
  * @param trainings Array of training records with user and SOP relations
  * @param signatures Map of training IDs to signature blobs
@@ -108,7 +139,9 @@ export const generateMultiSignaturePDF = async (
       // Add trainer name
       doc.text(trainerName, 55, yPos + 6, { align: "center" });
 
-      doc.text(`${sop.name}`, 100, yPos + 6, { align: "center" });
+      // Render procedure name with text wrapping
+      const procedureNameWidth = 55; // Slightly less than cell width (60) for margin
+      renderWrappedText(doc, sop.name, 100, yPos, 10, procedureNameWidth);
 
       doc.text(sop.version, 145, yPos + 6, { align: "center" });
 
@@ -393,7 +426,16 @@ export const generateSignaturePDF = async (
       // Add trainer name
       doc.text(trainerName, 55, yPos + 6, { align: "center" });
 
-      doc.text(`${training.sop.name}`, 100, yPos + 6, { align: "center" });
+      // Render procedure name with text wrapping
+      const procedureNameWidth = 55; // Slightly less than cell width (60) for margin
+      renderWrappedText(
+        doc,
+        training.sop.name,
+        100,
+        yPos,
+        10,
+        procedureNameWidth
+      );
 
       doc.text(training.sop.version, 145, yPos + 6, { align: "center" });
 
