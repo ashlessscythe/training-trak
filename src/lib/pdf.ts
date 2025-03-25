@@ -99,23 +99,28 @@ export const generateMultiSignaturePDF = async (
       doc.rect(10, yPos, 30, 10, "F");
       doc.text("DATE", 25, yPos + 6, { align: "center" });
 
-      doc.rect(40, yPos, 30, 10, "F");
+      // set again
+      doc.setFillColor(255, 255, 255);
+      doc.setTextColor(0, 0, 0);
+
+      doc.rect(40, yPos, 30, 10);
       doc.text("TRAINER", 55, yPos + 6, { align: "center" });
 
-      doc.rect(70, yPos, 60, 10, "F");
+      doc.rect(70, yPos, 60, 10);
       doc.text("COURSE NAME / SOP / TRAINING", 100, yPos + 6, {
         align: "center",
       });
 
-      doc.rect(130, yPos, 30, 10, "F");
+      doc.rect(130, yPos, 30, 10);
       doc.text("REV LEVEL", 145, yPos + 6, { align: "center" });
 
-      doc.rect(160, yPos, 40, 10, "F");
+      doc.rect(160, yPos, 40, 10);
       doc.text("APP. DATE", 180, yPos + 6, { align: "center" });
 
       // Table data
       yPos += 10;
       doc.setTextColor(0, 0, 0);
+      doc.setFontSize(8);
 
       // Draw cell borders
       doc.rect(10, yPos, 30, 10);
@@ -162,20 +167,25 @@ export const generateMultiSignaturePDF = async (
       // Table headers
       doc.setFillColor(0, 0, 0);
       doc.setTextColor(255, 255, 255);
+      doc.setFontSize(10);
 
       doc.rect(10, yPos, 30, 10, "F");
       doc.text("S.S.O NUMBER", 25, yPos + 6, { align: "center" });
 
-      doc.rect(40, yPos, 40, 10, "F");
+      // set again
+      doc.setFillColor(255, 255, 255);
+      doc.setTextColor(0, 0, 0);
+
+      doc.rect(40, yPos, 40, 10);
       doc.text("EMPLOYEE NAME", 60, yPos + 6, { align: "center" });
 
-      doc.rect(80, yPos, 40, 10, "F");
+      doc.rect(80, yPos, 40, 10);
       doc.text("EMPLOYEE SIGNATURE", 100, yPos + 6, { align: "center" });
 
-      doc.rect(120, yPos, 40, 10, "F");
+      doc.rect(120, yPos, 40, 10);
       doc.text("VALIDATION DUE", 140, yPos + 6, { align: "center" });
 
-      doc.rect(160, yPos, 40, 10, "F");
+      doc.rect(160, yPos, 40, 10);
       doc.text("ACTUAL VAL. DATE", 180, yPos + 6, { align: "center" });
 
       // Process all signatures first to get data URLs
@@ -210,6 +220,7 @@ export const generateMultiSignaturePDF = async (
           // Table data - one row per trainee
           yPos += 10;
           doc.setTextColor(0, 0, 0);
+          doc.setFontSize(8);
 
           // Add a row for each trainee
           trainings.forEach((training, index) => {
@@ -286,24 +297,31 @@ export const generateMultiSignaturePDF = async (
           // Add checkboxes section
           yPos += 20;
 
-          // Table headers
-          doc.setFillColor(200, 200, 200);
-          doc.setTextColor(0, 0, 0);
+          // Table headers - using dark gray background with white text
+          doc.setFillColor(75, 75, 75);
+          doc.setTextColor(255, 255, 255);
+          doc.setFontSize(10);
 
           doc.rect(10, yPos, 40, 10, "F");
           doc.text("QR Code", 30, yPos + 6, { align: "center" });
 
-          doc.rect(50, yPos, 50, 10, "F");
+          // set again
+          doc.setFillColor(255, 255, 255);
+          doc.setTextColor(0, 0, 0);
+
+          doc.rect(50, yPos, 50, 10);
           doc.text("DEMONSTRATION OF TASK", 75, yPos + 6, { align: "center" });
 
-          doc.rect(100, yPos, 50, 10, "F");
+          doc.rect(100, yPos, 50, 10);
           doc.text("EXAMINATION", 125, yPos + 6, { align: "center" });
 
-          doc.rect(150, yPos, 50, 10, "F");
+          doc.rect(150, yPos, 50, 10);
           doc.text("OTHER", 175, yPos + 6, { align: "center" });
 
-          // Table data
+          // Table data - Reset text color to black for cell content
           yPos += 10;
+          doc.setTextColor(0, 0, 0);
+          doc.setFontSize(8);
 
           // Draw cell borders
           doc.rect(10, yPos, 40, 20);
@@ -386,23 +404,28 @@ export const generateSignaturePDF = async (
       doc.rect(10, yPos, 30, 10, "F");
       doc.text("DATE", 25, yPos + 6, { align: "center" });
 
-      doc.rect(40, yPos, 30, 10, "F");
+      // set again
+      doc.setFillColor(255, 255, 255);
+      doc.setTextColor(0, 0, 0);
+
+      doc.rect(40, yPos, 30, 10);
       doc.text("TRAINER", 55, yPos + 6, { align: "center" });
 
-      doc.rect(70, yPos, 60, 10, "F");
+      doc.rect(70, yPos, 60, 10);
       doc.text("COURSE NAME / SOP / TRAINING", 100, yPos + 6, {
         align: "center",
       });
 
-      doc.rect(130, yPos, 30, 10, "F");
+      doc.rect(130, yPos, 30, 10);
       doc.text("REV LEVEL", 145, yPos + 6, { align: "center" });
 
-      doc.rect(160, yPos, 40, 10, "F");
+      doc.rect(160, yPos, 40, 10);
       doc.text("APP. DATE", 180, yPos + 6, { align: "center" });
 
       // Table data
       yPos += 10;
       doc.setTextColor(0, 0, 0);
+      doc.setFontSize(8);
 
       // Draw cell borders
       doc.rect(10, yPos, 30, 10);
@@ -456,25 +479,31 @@ export const generateSignaturePDF = async (
       // Table headers
       doc.setFillColor(0, 0, 0);
       doc.setTextColor(255, 255, 255);
+      doc.setFontSize(10);
 
       doc.rect(10, yPos, 30, 10, "F");
       doc.text("S.S.O NUMBER", 25, yPos + 6, { align: "center" });
 
-      doc.rect(40, yPos, 40, 10, "F");
+      // set again
+      doc.setFillColor(255, 255, 255);
+      doc.setTextColor(0, 0, 0);
+
+      doc.rect(40, yPos, 40, 10);
       doc.text("EMPLOYEE NAME", 60, yPos + 6, { align: "center" });
 
-      doc.rect(80, yPos, 40, 10, "F");
+      doc.rect(80, yPos, 40, 10);
       doc.text("EMPLOYEE SIGNATURE", 100, yPos + 6, { align: "center" });
 
-      doc.rect(120, yPos, 40, 10, "F");
+      doc.rect(120, yPos, 40, 10);
       doc.text("VALIDATION DUE", 140, yPos + 6, { align: "center" });
 
-      doc.rect(160, yPos, 40, 10, "F");
+      doc.rect(160, yPos, 40, 10);
       doc.text("ACTUAL VAL. DATE", 180, yPos + 6, { align: "center" });
 
       // Table data
       yPos += 10;
       doc.setTextColor(0, 0, 0);
+      doc.setFontSize(8);
 
       // Draw cell borders
       doc.rect(10, yPos, 30, 10);
@@ -546,24 +575,30 @@ export const generateSignaturePDF = async (
         // Add checkboxes section
         yPos += 20;
 
-        // Table headers
-        doc.setFillColor(200, 200, 200);
-        doc.setTextColor(0, 0, 0);
+        // Table headers - using dark gray background with white text
+        doc.setFillColor(75, 75, 75);
+        doc.setTextColor(255, 255, 255);
 
         doc.rect(10, yPos, 40, 10, "F");
         doc.text("QR Code", 30, yPos + 6, { align: "center" });
 
-        doc.rect(50, yPos, 50, 10, "F");
+        // set again
+        doc.setFillColor(255, 255, 255);
+        doc.setTextColor(0, 0, 0);
+
+        doc.rect(50, yPos, 50, 10);
         doc.text("DEMONSTRATION OF TASK", 75, yPos + 6, { align: "center" });
 
-        doc.rect(100, yPos, 50, 10, "F");
+        doc.rect(100, yPos, 50, 10);
         doc.text("EXAMINATION", 125, yPos + 6, { align: "center" });
 
-        doc.rect(150, yPos, 50, 10, "F");
+        doc.rect(150, yPos, 50, 10);
         doc.text("OTHER", 175, yPos + 6, { align: "center" });
 
-        // Table data
+        // Table data - Reset text color to black for cell content
         yPos += 10;
+        doc.setTextColor(0, 0, 0);
+        doc.setFontSize(8);
 
         // Draw cell borders
         doc.rect(10, yPos, 40, 20);
