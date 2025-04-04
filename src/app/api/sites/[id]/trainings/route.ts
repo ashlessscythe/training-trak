@@ -64,6 +64,7 @@ export async function GET(req: NextRequest) {
           select: {
             name: true,
             siteId: true,
+            ssoId: true,
             department: {
               select: {
                 name: true,
@@ -160,6 +161,7 @@ export async function POST(req: NextRequest) {
               select: {
                 name: true,
                 siteId: true,
+                ssoId: true,
                 department: {
                   select: {
                     name: true,
@@ -270,6 +272,7 @@ export async function PUT(req: NextRequest) {
           select: {
             name: true,
             siteId: true,
+            ssoId: true,
             department: {
               select: {
                 name: true,

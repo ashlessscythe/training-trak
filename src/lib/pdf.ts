@@ -233,8 +233,9 @@ export const generateMultiSignaturePDF = async (
             doc.rect(120, rowYPos, 40, 10);
             doc.rect(160, rowYPos, 40, 10);
 
-            // Add cell content
-            doc.text(training.user.ssoId || "", 25, rowYPos + 6, {
+            // Add cell content - ensure SSO ID is displayed
+            const ssoId = training.user.ssoId || "N/A";
+            doc.text(ssoId, 25, rowYPos + 6, {
               align: "center",
             });
 
@@ -512,8 +513,9 @@ export const generateSignaturePDF = async (
       doc.rect(120, yPos, 40, 10);
       doc.rect(160, yPos, 40, 10);
 
-      // Add cell content
-      doc.text(training.user.ssoId || "", 25, yPos + 6, { align: "center" });
+      // Add cell content - ensure SSO ID is displayed
+      const ssoId = training.user.ssoId || "N/A";
+      doc.text(ssoId, 25, yPos + 6, { align: "center" });
 
       doc.text(training.user.name, 60, yPos + 6, { align: "center" });
 

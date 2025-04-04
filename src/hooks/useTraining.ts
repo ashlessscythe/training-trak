@@ -15,6 +15,7 @@ export type TrainingWithRelations = TrainingProgress & {
     id: string;
     name: string;
     siteId: string;
+    ssoId?: string;
     department?: {
       name: string;
     };
