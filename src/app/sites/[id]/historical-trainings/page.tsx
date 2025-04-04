@@ -1,12 +1,10 @@
-import { Card } from "@/components/ui/card";
+"use client";
+
 import { Button } from "@/components/ui/button";
+import { useParams, useRouter } from "next/navigation";
+import { Card } from "@/components/ui/card";
 import { TrainingStatus } from "@prisma/client";
-import { TrainingDialog } from "@/components/training-dialog";
-import { SignatureDialog } from "@/components/signature-dialog";
-import { AssignTrainingDialog } from "@/components/assign-training-dialog";
-import { MultipleSignaturesDialog } from "@/components/multiple-signatures-dialog";
 import { TrainingViewSelector } from "@/components/training-view-selector";
-import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { getTrainingStatusText } from "@/lib/utils";
 import {
   Select,
@@ -21,54 +19,96 @@ import {
   ChevronRight,
   ChevronDown,
   CheckCircle,
-  Clock,
   FileSignature,
-  History,
+  ArrowLeft,
 } from "lucide-react";
 import { ListView } from "@/components/list-view";
 import { ViewModeToggle } from "@/components/view-mode-toggle";
 import { useListView } from "@/hooks/useListView";
-import { generateSignaturePDF } from "@/lib/pdf";
-import { uploadSignatureDocument } from "@/lib/document-upload";
-import { useRouter } from "next/navigation";
 
-interface TrainingListProps {
-  siteId?: string;
-  title?: string;
-}
-
-export function TrainingList({
-  siteId,
-  title = "Training Progress",
-}: TrainingListProps) {
+export default function HistoricalTrainingsPage() {
+  const params = useParams();
   const router = useRouter();
-  const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
-  const [isSignDialogOpen, setIsSignDialogOpen] = useState(false);
-  const [isMultipleSignDialogOpen, setIsMultipleSignDialogOpen] =
-    useState(false);
+  const id = params.id as string;
   const {
-    groupedPendingAndSignedTrainings,
+    completedAndSignedTrainings,
     viewType,
     setViewType,
     isLoading,
-    isDialogOpen,
-    selectedTraining,
     filters,
     sortBy,
     sortOrder,
-    setIsDialogOpen,
-    setSelectedTraining,
     setFilters,
     setSortBy,
     setSortOrder,
     fetchTrainings,
-    handleUpdate,
     getStatusColor,
-  } = useTraining({ siteId });
+  } = useTraining({ siteId: id });
 
-  const { viewMode, setViewMode, currentView } = useListView();
+  const { viewMode, setViewMode } = useListView();
   const [expandedGroups, setExpandedGroups] = useState<string[]>([]);
-  const { canAssignTraining } = useUserPermissions();
+
+  // Group trainings by date when viewType is 'date'
+  const groupedTrainings = useMemo(() => {
+    if (viewType === "date") {
+      return completedAndSignedTrainings.reduce((acc, training) => {
+        if (!training.completedAt) return acc;
+
+        // Format the date as YYYY-MM-DD
+        const dateStr = new Date(training.completedAt)
+          .toISOString()
+          .split("T")[0];
+
+        // Use a more readable format for display
+        const displayDate = new Date(training.completedAt).toLocaleDateString(
+          undefined,
+          {
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+          }
+        );
+
+        if (!acc[displayDate]) {
+          acc[displayDate] = [];
+        }
+        acc[displayDate].push(training);
+        return acc;
+      }, {} as Record<string, typeof completedAndSignedTrainings>);
+    } else {
+      // Use the existing grouping logic from useTraining hook
+      switch (viewType) {
+        case "user":
+          return completedAndSignedTrainings.reduce((acc, training) => {
+            const userName = training.user.name;
+            if (!acc[userName]) {
+              acc[userName] = [];
+            }
+            acc[userName].push(training);
+            return acc;
+          }, {} as Record<string, typeof completedAndSignedTrainings>);
+        case "department":
+          return completedAndSignedTrainings.reduce((acc, training) => {
+            const deptName = training.user.department?.name || "No Department";
+            if (!acc[deptName]) {
+              acc[deptName] = [];
+            }
+            acc[deptName].push(training);
+            return acc;
+          }, {} as Record<string, typeof completedAndSignedTrainings>);
+        case "sop":
+        default:
+          return completedAndSignedTrainings.reduce((acc, training) => {
+            const sopName = training.sop.name;
+            if (!acc[sopName]) {
+              acc[sopName] = [];
+            }
+            acc[sopName].push(training);
+            return acc;
+          }, {} as Record<string, typeof completedAndSignedTrainings>);
+      }
+    }
+  }, [completedAndSignedTrainings, viewType]);
 
   useEffect(() => {
     fetchTrainings();
@@ -97,6 +137,8 @@ export function TrainingList({
           ? "User"
           : viewType === "department"
           ? "Department"
+          : viewType === "date"
+          ? "Completion Date"
           : "SOP",
       accessor: (groupName: string) => (
         <div className="flex items-center gap-2">
@@ -122,30 +164,24 @@ export function TrainingList({
     {
       header: "Count",
       accessor: (groupName: string) => {
-        return groupedPendingAndSignedTrainings[groupName]?.length || 0;
+        return groupedTrainings[groupName]?.length || 0;
       },
       className: "w-24",
     },
     {
-      header: "Progress",
+      header: viewType === "date" ? "Latest Training" : "Completion Date",
       accessor: (groupName: string) => {
-        const trainings = groupedPendingAndSignedTrainings[groupName] || [];
-        const signed = trainings.filter((t: any) => t.isSigned).length;
-        const total = trainings.length || 1; // Avoid division by zero
+        const trainings = groupedTrainings[groupName] || [];
+        if (trainings.length === 0) return "N/A";
 
-        return (
-          <div className="flex items-center gap-2">
-            <div className="w-32 h-2 bg-gray-200 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-blue-600 transition-all"
-                style={{ width: `${(signed / total) * 100}%` }}
-              />
-            </div>
-            <span className="text-sm text-muted-foreground">
-              {signed}/{total}
-            </span>
-          </div>
-        );
+        // Find the most recent completion date
+        const mostRecentDate = trainings.reduce((latest, training) => {
+          if (!training.completedAt) return latest;
+          const completedDate = new Date(training.completedAt);
+          return !latest || completedDate > latest ? completedDate : latest;
+        }, null as Date | null);
+
+        return mostRecentDate ? mostRecentDate.toLocaleDateString() : "N/A";
       },
       className: "w-48",
     },
@@ -173,9 +209,6 @@ export function TrainingList({
         <div className="flex items-center gap-2">
           {training.status === TrainingStatus.COMPLETED && (
             <CheckCircle className="h-4 w-4 text-green-500" />
-          )}
-          {training.status === TrainingStatus.IN_PROGRESS && (
-            <Clock className="h-4 w-4 text-amber-500" />
           )}
           {training.isSigned && (
             <FileSignature className="h-4 w-4 text-blue-500" />
@@ -208,34 +241,6 @@ export function TrainingList({
       ),
       className: "w-48",
     },
-    {
-      header: "Actions",
-      accessor: (training: any) => (
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              setSelectedTraining(training);
-              setIsDialogOpen(true);
-            }}
-          >
-            Update Status
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              setSelectedTraining(training);
-              setIsSignDialogOpen(true);
-            }}
-          >
-            Sign Training
-          </Button>
-        </div>
-      ),
-      className: "w-64",
-    },
   ];
 
   const renderCard = (training: any) => (
@@ -244,48 +249,21 @@ export function TrainingList({
         <h3 className="text-lg font-semibold">
           {training.sop.name} v{training.sop.version}
         </h3>
-        <div className="flex flex-col gap-2">
-          <div className="flex items-center gap-2">
-            {training.status === TrainingStatus.COMPLETED && (
-              <CheckCircle className="h-4 w-4 text-green-500" />
-            )}
-            {training.status === TrainingStatus.IN_PROGRESS && (
-              <Clock className="h-4 w-4 text-amber-500" />
-            )}
-            {training.isSigned && (
-              <FileSignature className="h-4 w-4 text-blue-500" />
-            )}
-            <span
-              className={`font-medium ${getStatusColor(
-                training.status,
-                training.isSigned
-              )}`}
-            >
-              {getTrainingStatusText(training.status, training.isSigned)}
-            </span>
-          </div>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setSelectedTraining(training);
-                setIsDialogOpen(true);
-              }}
-            >
-              Update Status
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setSelectedTraining(training);
-                setIsSignDialogOpen(true);
-              }}
-            >
-              Sign Training
-            </Button>
-          </div>
+        <div className="flex items-center gap-2">
+          {training.status === TrainingStatus.COMPLETED && (
+            <CheckCircle className="h-4 w-4 text-green-500" />
+          )}
+          {training.isSigned && (
+            <FileSignature className="h-4 w-4 text-blue-500" />
+          )}
+          <span
+            className={`font-medium ${getStatusColor(
+              training.status,
+              training.isSigned
+            )}`}
+          >
+            {getTrainingStatusText(training.status, training.isSigned)}
+          </span>
         </div>
       </div>
       <div className="space-y-2 text-sm text-muted-foreground">
@@ -308,40 +286,30 @@ export function TrainingList({
   return (
     <div className="container mx-auto py-6">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">{title}</h1>
         <div className="flex items-center gap-4">
           <Button
             variant="outline"
+            size="sm"
             className="flex items-center gap-2"
-            onClick={() => router.push(`/sites/${siteId}/historical-trainings`)}
+            onClick={() => router.push(`/sites/${id}/training`)}
           >
-            <History className="h-4 w-4" />
-            View Historical Trainings
+            <ArrowLeft className="h-4 w-4" />
+            Back to Training
           </Button>
-          <TrainingViewSelector value={viewType} onChange={setViewType} />
+          <h1 className="text-3xl font-bold">Historical Trainings</h1>
+        </div>
+        <div className="flex items-center gap-4">
+          <TrainingViewSelector
+            value={viewType}
+            onChange={setViewType}
+            showDateOption={true}
+          />
           <ViewModeToggle viewMode={viewMode} onChange={setViewMode} />
         </div>
       </div>
 
       <div className="flex justify-between items-center mb-4">
         <div className="flex gap-4">
-          <div className="flex gap-2">
-            {canAssignTraining && (
-              <Button
-                onClick={() => setIsAssignDialogOpen(true)}
-                className="mb-4"
-              >
-                Assign Training
-              </Button>
-            )}
-            <Button
-              onClick={() => setIsMultipleSignDialogOpen(true)}
-              className="mb-4"
-              variant="outline"
-            >
-              Capture Multiple Signatures
-            </Button>
-          </div>
           <Select
             value={filters.status || "ALL"}
             onValueChange={(value) =>
@@ -392,8 +360,8 @@ export function TrainingList({
       {/* Status Legend */}
       <div className="flex gap-4 mb-4">
         <div className="flex items-center gap-1">
-          <Clock className="h-4 w-4 text-amber-500" />
-          <span className="text-sm">Pending</span>
+          <CheckCircle className="h-4 w-4 text-green-500" />
+          <span className="text-sm">Completed</span>
         </div>
         <div className="flex items-center gap-1">
           <FileSignature className="h-4 w-4 text-blue-500" />
@@ -401,9 +369,8 @@ export function TrainingList({
         </div>
       </div>
 
-      {/* Single Training Section (Pending and/or Signed) */}
+      {/* Completed Trainings Section */}
       <div className="mb-8">
-        <h2 className="text-xl font-semibold mb-4">Training</h2>
         <div className="rounded-md border">
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -422,7 +389,7 @@ export function TrainingList({
                 </tr>
               </thead>
               <tbody>
-                {Object.entries(groupedPendingAndSignedTrainings).map(
+                {Object.entries(groupedTrainings).map(
                   ([groupName, groupTrainings]) => (
                     <React.Fragment key={`training-group-${groupName}`}>
                       <tr
@@ -449,7 +416,7 @@ export function TrainingList({
                                 view="table"
                                 renderCard={renderCard}
                                 keyExtractor={(training) => training.id}
-                                emptyMessage="No training records found."
+                                emptyMessage="No completed training records found."
                               />
                             </div>
                           </td>
@@ -458,13 +425,13 @@ export function TrainingList({
                     </React.Fragment>
                   )
                 )}
-                {Object.keys(groupedPendingAndSignedTrainings).length === 0 && (
+                {Object.keys(groupedTrainings).length === 0 && (
                   <tr>
                     <td
                       colSpan={parentColumns.length}
                       className="p-4 text-center"
                     >
-                      No pending or signed training records found.
+                      No completed and signed training records found.
                     </td>
                   </tr>
                 )}
@@ -473,99 +440,6 @@ export function TrainingList({
           </div>
         </div>
       </div>
-
-      <AssignTrainingDialog
-        isOpen={isAssignDialogOpen}
-        onClose={() => setIsAssignDialogOpen(false)}
-        onSubmit={async (data) => {
-          try {
-            const response = await fetch(`/api/sites/${siteId}/trainings`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(data),
-            });
-
-            if (!response.ok) {
-              throw new Error("Failed to assign training");
-            }
-
-            setIsAssignDialogOpen(false);
-            fetchTrainings();
-          } catch (error) {
-            console.error("Error assigning training:", error);
-          }
-        }}
-        siteId={siteId || ""}
-      />
-
-      <TrainingDialog
-        isOpen={isDialogOpen}
-        onClose={() => {
-          setIsDialogOpen(false);
-          setSelectedTraining(undefined);
-        }}
-        onSubmit={handleUpdate}
-        training={selectedTraining}
-        title="Update Training Status"
-      />
-
-      <SignatureDialog
-        isOpen={isSignDialogOpen}
-        onClose={() => {
-          setIsSignDialogOpen(false);
-          setSelectedTraining(undefined);
-        }}
-        onSubmit={async (data) => {
-          try {
-            // Convert signature data URL to a Blob
-            const base64Data = data.signatureData.split(",")[1];
-            const signatureBlob = await fetch(
-              `data:image/png;base64,${base64Data}`
-            ).then((r) => r.blob());
-
-            if (!selectedTraining) {
-              throw new Error("Training data is missing");
-            }
-
-            // Generate a PDF with the signature
-            const pdfBlob = await generateSignaturePDF(
-              selectedTraining,
-              signatureBlob,
-              data.trainerName
-            );
-
-            // Upload the signature document
-            await uploadSignatureDocument(
-              pdfBlob,
-              selectedTraining,
-              data.trainingId
-            );
-
-            setIsSignDialogOpen(false);
-            setSelectedTraining(undefined);
-
-            // Show success message
-            alert("Signature saved successfully");
-
-            // Refresh the training list
-            fetchTrainings();
-          } catch (error) {
-            console.error("Error saving signature:", error);
-            alert("Error saving signature. Please try again.");
-          }
-        }}
-        training={selectedTraining}
-        title="Sign Training Document"
-      />
-
-      <MultipleSignaturesDialog
-        isOpen={isMultipleSignDialogOpen}
-        onClose={() => {
-          setIsMultipleSignDialogOpen(false);
-          fetchTrainings(); // Refresh the training list after capturing signatures
-        }}
-        siteId={siteId}
-      />
     </div>
   );
 }

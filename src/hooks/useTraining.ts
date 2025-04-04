@@ -160,7 +160,42 @@ export function useTraining({ siteId, userId }: UseTrainingOptions) {
     handleUpdateResource: handleUpdate,
   } = useResourceList<TrainingWithRelations, TrainingFilters>(resourceOptions);
 
-  // Split trainings into current and historical/completed
+  // Split trainings into different categories
+
+  // Pending trainings - not completed
+  const pendingTrainings = useMemo(() => {
+    return trainings.filter(
+      (training) => training.status === TrainingStatus.IN_PROGRESS
+    );
+  }, [trainings]);
+
+  // Signed trainings - signed but not completed
+  const signedTrainings = useMemo(() => {
+    return trainings.filter(
+      (training) =>
+        training.isSigned && training.status !== TrainingStatus.COMPLETED
+    );
+  }, [trainings]);
+
+  // Completed and signed trainings - both completed and signed
+  const completedAndSignedTrainings = useMemo(() => {
+    return trainings.filter(
+      (training) =>
+        training.status === TrainingStatus.COMPLETED && training.isSigned
+    );
+  }, [trainings]);
+
+  // Pending, signed, or completed but not signed trainings (for the main training view)
+  const pendingAndSignedTrainings = useMemo(() => {
+    return trainings.filter(
+      (training) =>
+        training.status === TrainingStatus.IN_PROGRESS ||
+        training.isSigned === false || // Include all unsigned trainings (even if completed)
+        (training.isSigned && training.status !== TrainingStatus.COMPLETED)
+    );
+  }, [trainings]);
+
+  // For backward compatibility
   const currentTrainings = useMemo(() => {
     return trainings.filter(
       (training) =>
@@ -187,6 +222,15 @@ export function useTraining({ siteId, userId }: UseTrainingOptions) {
     return groupTrainingsByType(historicalTrainings);
   }, [historicalTrainings, groupTrainingsByType]);
 
+  // New grouped trainings for the updated UI
+  const groupedPendingAndSignedTrainings = useMemo(() => {
+    return groupTrainingsByType(pendingAndSignedTrainings);
+  }, [pendingAndSignedTrainings, groupTrainingsByType]);
+
+  const groupedCompletedTrainings = useMemo(() => {
+    return groupTrainingsByType(completedAndSignedTrainings);
+  }, [completedAndSignedTrainings, groupTrainingsByType]);
+
   const getStatusColor = useMemo(
     () => (status: TrainingStatus, isSigned?: boolean) => {
       return getTrainingStatusColor(status, isSigned);
@@ -198,8 +242,14 @@ export function useTraining({ siteId, userId }: UseTrainingOptions) {
     trainings,
     currentTrainings,
     historicalTrainings,
+    pendingTrainings,
+    signedTrainings,
+    completedAndSignedTrainings,
+    pendingAndSignedTrainings,
     groupedCurrentTrainings,
     groupedHistoricalTrainings,
+    groupedPendingAndSignedTrainings,
+    groupedCompletedTrainings,
     viewType,
     setViewType,
     isLoading,
