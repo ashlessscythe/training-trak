@@ -1,59 +1,84 @@
-import { useSession } from "next-auth/react";
-import { Role } from "@prisma/client";
-import { useMemo } from "react";
+import { useUser } from "@stackframe/stack";
+import { useEffect, useState } from "react";
+import { PERMISSIONS } from "@/lib/permissions";
 
 export function useUserPermissions() {
-  const { data: session } = useSession();
+  const user = useUser();
+  const userSiteId = (user?.clientMetadata?.siteId as string) || undefined;
 
-  const userRole = session?.user?.role as Role | undefined;
-  const userSiteId = session?.user?.site?.id;
+  // State for permissions
+  const [permissions, setPermissions] = useState({
+    canAssignTraining: false,
+    canModifyTraining: false,
+    canMarkSOPCritical: false,
+    canEditSOP: false,
+  });
 
-  const permissions = useMemo(() => {
-    // Default permissions
-    const perms = {
-      canAssignTraining: false,
-      canModifyTraining: false,
-      canMarkSOPCritical: false,
-      canEditSOP: false,
+  // State for roles
+  const [userRole, setUserRole] = useState<string | undefined>(undefined);
+
+  // Effect to check permissions when user changes
+  useEffect(() => {
+    if (!user) return;
+
+    const checkPermissions = async () => {
+      try {
+        // Check each permission
+        const assignTraining = await user.getPermission(
+          PERMISSIONS.ASSIGN_TRAINING
+        );
+        const modifyTraining = await user.getPermission(
+          PERMISSIONS.MODIFY_TRAINING
+        );
+        const markSOPCritical = await user.getPermission(
+          PERMISSIONS.MARK_SOP_CRITICAL
+        );
+        const editSOP = await user.getPermission(PERMISSIONS.EDIT_SOP);
+
+        // Check roles to determine userRole for backward compatibility
+        const isOwner = await user.getPermission(PERMISSIONS.OWNER);
+        const isAdmin = await user.getPermission(PERMISSIONS.ADMIN);
+        const isSiteAdmin = await user.getPermission(PERMISSIONS.SITE_ADMIN);
+        const isSupervisor = await user.getPermission(PERMISSIONS.SUPERVISOR);
+        const isUser = await user.getPermission(PERMISSIONS.USER);
+
+        // Set permissions
+        setPermissions({
+          canAssignTraining: !!assignTraining,
+          canModifyTraining: !!modifyTraining,
+          canMarkSOPCritical: !!markSOPCritical,
+          canEditSOP: !!editSOP,
+        });
+
+        // Determine role (highest role takes precedence)
+        if (isOwner) {
+          setUserRole("OWNER");
+        } else if (isAdmin) {
+          setUserRole("ADMIN");
+        } else if (isSiteAdmin) {
+          setUserRole("SITE_ADMIN");
+        } else if (isSupervisor) {
+          setUserRole("SUPERVISOR");
+        } else if (isUser) {
+          setUserRole("USER");
+        } else {
+          // Fallback to clientMetadata for backward compatibility
+          setUserRole((user.clientMetadata?.role as string) || "USER");
+        }
+      } catch (error) {
+        console.error("Error checking permissions:", error);
+        // Fallback to clientMetadata for backward compatibility
+        setUserRole((user.clientMetadata?.role as string) || "USER");
+      }
     };
 
-    if (!userRole) return perms;
-
-    // OWNER and ADMIN can do everything
-    if (userRole === "OWNER" || userRole === "ADMIN") {
-      perms.canAssignTraining = true;
-      perms.canModifyTraining = true;
-      perms.canMarkSOPCritical = true;
-      perms.canEditSOP = true;
-      return perms;
-    }
-
-    // SITE_ADMIN can assign and modify training, and mark SOPs as critical
-    if (userRole === "SITE_ADMIN") {
-      perms.canAssignTraining = true;
-      perms.canModifyTraining = true;
-      perms.canMarkSOPCritical = true;
-      perms.canEditSOP = true;
-      return perms;
-    }
-
-    // SUPERVISOR can modify training but not assign it, and can't edit SOPs or mark them as critical
-    if (userRole === "SUPERVISOR") {
-      perms.canAssignTraining = false; // Supervisors can't assign training
-      perms.canModifyTraining = true;
-      perms.canMarkSOPCritical = false; // Supervisors can't mark SOPs as critical
-      perms.canEditSOP = false; // Supervisors can't edit SOPs
-      return perms;
-    }
-
-    // USER and PENDING have no special permissions
-    return perms;
-  }, [userRole]);
+    checkPermissions();
+  }, [user]);
 
   return {
     ...permissions,
     userRole,
     userSiteId,
-    isAuthenticated: !!session?.user,
+    isAuthenticated: !!user,
   };
 }

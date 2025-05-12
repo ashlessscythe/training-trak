@@ -1,16 +1,17 @@
 "use client";
 
-import { Suspense, useState } from "react";
-import { signIn } from "next-auth/react";
+import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import Link from "next/link";
+import { useStackApp } from "@stackframe/stack";
 
-function SignInForm() {
+export default function CustomSignIn() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get("callbackUrl") || "/";
+  const callbackUrl = searchParams.get("redirect") || "/dashboard";
+  const stackApp = useStackApp();
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
@@ -24,29 +25,27 @@ function SignInForm() {
     const password = formData.get("password") as string;
 
     try {
-      const result = await signIn("credentials", {
+      const result = await stackApp.signInWithCredential({
         email,
         password,
-        redirect: false,
       });
 
-      if (result?.error) {
-        setError(result.error);
-      } else {
-        // Get the user's session to check their role
-        const response = await fetch("/api/auth/session");
-        const session = await response.json();
-
-        if (session?.user?.role === "PENDING") {
-          router.push("/auth/pending");
-        } else {
-          router.push(callbackUrl);
-        }
-        router.refresh();
+      if (result.status !== "ok") {
+        setError("Invalid email or password");
+        setIsLoading(false);
+        return;
       }
-    } catch (err) {
-      setError("An error occurred. Please try again.");
-    } finally {
+
+      // Get the user's metadata to check their role
+      const user = await stackApp.getUser();
+
+      if (user?.clientMetadata?.role === "PENDING") {
+        router.push("/auth/pending");
+      } else {
+        router.push(callbackUrl);
+      }
+    } catch (err: any) {
+      setError(err.message || "An error occurred. Please try again.");
       setIsLoading(false);
     }
   };
@@ -114,19 +113,14 @@ function SignInForm() {
           <span className="text-muted-foreground">
             Don&apos;t have an account?{" "}
           </span>
-          <Link href="/auth/signup" className="text-primary hover:underline">
+          <Link
+            href="/handler/sign-up"
+            className="text-primary hover:underline"
+          >
             Sign up
           </Link>
         </div>
       </Card>
     </div>
-  );
-}
-
-export default function SignIn() {
-  return (
-    <Suspense>
-      <SignInForm />
-    </Suspense>
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { useSession } from "next-auth/react";
+import { useState, useEffect, useCallback, Suspense } from "react";
+import { useUser } from "@stackframe/stack";
 import {
   Dialog,
   DialogContent,
@@ -30,7 +30,8 @@ type TrainingWithRelations = TrainingProgress & {
   sop: { name: string; version: string };
 };
 
-export function MultipleSignaturesDialog({
+// Component that uses useUser
+function MultipleSignaturesDialogContent({
   isOpen,
   onClose,
   siteId,
@@ -49,7 +50,7 @@ export function MultipleSignaturesDialog({
   const [signatures, setSignatures] = useState<Map<string, Blob>>(new Map());
   const [isGeneratingMultiSig, setIsGeneratingMultiSig] = useState(false);
   const [isSubmissionComplete, setIsSubmissionComplete] = useState(false);
-  const { data: session } = useSession();
+  const user = useUser();
 
   // Memoize the fetchInProgressSOPs function with useCallback
   const fetchInProgressSOPs = useCallback(async () => {
@@ -453,7 +454,9 @@ export function MultipleSignaturesDialog({
                         type="button"
                         onClick={() =>
                           generateAndUploadMultiSignaturePDF(
-                            session?.user?.name || "Unknown Trainer"
+                            user?.displayName ||
+                              user?.primaryEmail ||
+                              "Unknown Trainer"
                           )
                         }
                       >
@@ -490,5 +493,33 @@ export function MultipleSignaturesDialog({
         )}
       </DialogContent>
     </Dialog>
+  );
+}
+
+// Fallback component to show while loading
+function MultipleSignaturesDialogFallback({
+  isOpen,
+  onClose,
+}: MultipleSignaturesDialogProps) {
+  return (
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-3xl">
+        <DialogHeader>
+          <DialogTitle>Capture Multiple Signatures</DialogTitle>
+        </DialogHeader>
+        <div className="flex justify-center items-center py-8">
+          <div className="text-center">Loading...</div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// Main component that uses Suspense
+export function MultipleSignaturesDialog(props: MultipleSignaturesDialogProps) {
+  return (
+    <Suspense fallback={<MultipleSignaturesDialogFallback {...props} />}>
+      <MultipleSignaturesDialogContent {...props} />
+    </Suspense>
   );
 }

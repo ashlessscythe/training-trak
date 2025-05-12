@@ -1,8 +1,8 @@
 import { PrismaClient } from "@prisma/client";
 export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
-import bcrypt from "bcryptjs";
 import { EmailService } from "@/lib/email";
+import { stackServerApp } from "@/stack";
 
 const prisma = new PrismaClient();
 
@@ -43,16 +43,16 @@ async function getAdminEmails(siteId: string) {
 
 export async function POST(request: Request) {
   try {
-    const { email, password, name } = await request.json();
+    const { email, name, siteId } = await request.json();
 
-    if (!email || !password || !name) {
+    if (!email || !name) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
       );
     }
 
-    // Check if user exists
+    // Check if user exists in Prisma
     const existingUser = await prisma.user.findUnique({
       where: { email },
     });
@@ -64,16 +64,32 @@ export async function POST(request: Request) {
       );
     }
 
-    // Get default site
-    const defaultSite = await prisma.site.findFirst({
-      where: { code: "DEFAULT" },
-    });
+    // Get default site if siteId not provided
+    let userSiteId = siteId;
+    let site;
 
-    if (!defaultSite) {
-      return NextResponse.json(
-        { error: "Default site not found" },
-        { status: 500 }
-      );
+    if (!userSiteId) {
+      const defaultSite = await prisma.site.findFirst({
+        where: { code: "DEFAULT" },
+      });
+
+      if (!defaultSite) {
+        return NextResponse.json(
+          { error: "Default site not found" },
+          { status: 500 }
+        );
+      }
+
+      userSiteId = defaultSite.id;
+      site = defaultSite;
+    } else {
+      site = await prisma.site.findUnique({
+        where: { id: userSiteId },
+      });
+
+      if (!site) {
+        return NextResponse.json({ error: "Site not found" }, { status: 400 });
+      }
     }
 
     // Get default dept
@@ -87,7 +103,6 @@ export async function POST(request: Request) {
         { status: 500 }
       );
     }
-    // Get default dept
 
     const defaultPosition = await prisma.position.findFirst({
       where: { name: "DEFAULT_POSITION" },
@@ -100,16 +115,13 @@ export async function POST(request: Request) {
       );
     }
 
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    // Create user with PENDING role and default position/id
+    // Create user in Prisma with PENDING role and default position/dept
     const user = await prisma.user.create({
       data: {
         email,
         name,
-        password: hashedPassword,
-        siteId: defaultSite.id,
+        password: "", // Password is managed by Stack Auth
+        siteId: userSiteId,
         role: "PENDING",
         departmentId: defaultDept.id,
         positionId: defaultPosition.id,

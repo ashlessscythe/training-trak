@@ -1,7 +1,7 @@
 "use client";
 
-import { useRef, useState, useEffect } from "react";
-import { useSession } from "next-auth/react";
+import { useRef, useState, useEffect, Suspense } from "react";
+import { useUser } from "@stackframe/stack";
 import {
   Dialog,
   DialogContent,
@@ -26,7 +26,8 @@ interface SignatureDialogProps {
   title: string;
 }
 
-export function SignatureDialog({
+// Component that uses useUser
+function SignatureDialogContent({
   isOpen,
   onClose,
   onSubmit,
@@ -37,7 +38,7 @@ export function SignatureDialog({
   const [isDrawing, setIsDrawing] = useState(false);
   const [hasSigned, setHasSigned] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { data: session } = useSession();
+  const user = useUser();
 
   // Initialize canvas when dialog opens
   useEffect(() => {
@@ -136,7 +137,8 @@ export function SignatureDialog({
       if (!canvas) return;
 
       const signatureData = canvas.toDataURL("image/png");
-      const trainerName = session?.user?.name || "Unknown Trainer";
+      const trainerName =
+        user?.displayName || user?.primaryEmail || "Unknown Trainer";
 
       // Update the training to mark it as signed
       await fetch("/api/trainings", {
@@ -248,5 +250,35 @@ export function SignatureDialog({
         )}
       </DialogContent>
     </Dialog>
+  );
+}
+
+// Fallback component to show while loading
+function SignatureDialogFallback({
+  isOpen,
+  onClose,
+  training,
+  title,
+}: Omit<SignatureDialogProps, "onSubmit"> & { onSubmit?: any }) {
+  return (
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-3xl">
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+        </DialogHeader>
+        <div className="flex justify-center items-center py-8">
+          <div className="text-center">Loading...</div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// Main component that uses Suspense
+export function SignatureDialog(props: SignatureDialogProps) {
+  return (
+    <Suspense fallback={<SignatureDialogFallback {...props} />}>
+      <SignatureDialogContent {...props} />
+    </Suspense>
   );
 }

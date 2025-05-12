@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useSession } from "next-auth/react";
+import { useUser } from "@stackframe/stack";
 import { cn } from "@/lib/utils";
+import { Suspense } from "react";
+
 const baseNavigation = [
   // Common for all logged-in users
   {
@@ -53,15 +55,17 @@ const baseNavigation = [
   { name: "Admin", href: "/admin", roles: ["OWNER", "ADMIN"] },
 ];
 
-export function Nav() {
+// Component that uses useUser
+function NavContent() {
   const pathname = usePathname();
-  const { data: session } = useSession();
-  const userRole = session?.user?.role || "PENDING";
+  const user = useUser();
+  const userRole = (user?.clientMetadata?.role as string) || "PENDING";
+
   // Add site users link for site admins
   // Build navigation based on user role and site
   const buildNavigation = () => {
     let nav = [...baseNavigation];
-    const siteId = session?.user?.site?.id;
+    const siteId = user?.clientMetadata?.siteId as string;
 
     // Add site-specific management links for site admins
     if (userRole === "SITE_ADMIN" && siteId) {
@@ -115,5 +119,25 @@ export function Nav() {
         </Link>
       ))}
     </nav>
+  );
+}
+
+// Fallback component to show while loading
+function NavFallback() {
+  return (
+    <nav className="flex space-x-4 lg:space-x-6">
+      <div className="text-sm font-medium text-muted-foreground">
+        Loading...
+      </div>
+    </nav>
+  );
+}
+
+// Main component that uses Suspense
+export function Nav() {
+  return (
+    <Suspense fallback={<NavFallback />}>
+      <NavContent />
+    </Suspense>
   );
 }

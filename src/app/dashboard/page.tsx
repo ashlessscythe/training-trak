@@ -1,4 +1,3 @@
-import { getServerSession } from "next-auth/next";
 import { redirect } from "next/navigation";
 import {
   Card,
@@ -10,6 +9,7 @@ import {
 import prisma from "@/lib/prisma";
 import { Role, TrainingStatus } from "@prisma/client";
 import { getTrainingStatusBgColor, getTrainingStatusText } from "@/lib/utils";
+import { stackServerApp } from "@/stack";
 
 // Define types for our metrics
 interface DepartmentTrainingStats {
@@ -55,6 +55,7 @@ async function getMetrics(
       include: {
         department: true,
         position: true,
+        site: true, // Include site relationship
       },
     }),
     // Get detailed training information
@@ -239,21 +240,28 @@ async function getMetrics(
 }
 
 export default async function DashboardPage() {
-  const session = await getServerSession();
+  // Use Stack Auth instead of NextAuth
+  const stackUser = await stackServerApp.getUser();
 
-  if (!session?.user?.email) {
-    redirect("/auth/signin");
+  if (!stackUser) {
+    redirect("/handler/sign-in");
+  }
+
+  const email = stackUser.primaryEmail || "";
+
+  if (!email) {
+    redirect("/handler/sign-in");
   }
 
   const user = await prisma.user.findUnique({
-    where: { email: session.user.email },
+    where: { email },
     include: {
       site: true,
     },
   });
 
   if (!user) {
-    redirect("/auth/signin");
+    redirect("/handler/sign-in");
   }
 
   const metrics = await getMetrics(user.id, user.role, user.siteId);
