@@ -16,10 +16,18 @@ export async function middleware(request: NextRequest) {
   const isAuth = !!user;
   const isAuthPage =
     request.nextUrl.pathname.startsWith("/auth/signin") ||
-    request.nextUrl.pathname.startsWith("/auth/signup") ||
-    request.nextUrl.pathname.startsWith("/handler/");
+    request.nextUrl.pathname.startsWith("/auth/signup");
+
+  // Exclude handler routes from auth page check - let Stack Auth handle these routes
+  const isHandlerRoute = request.nextUrl.pathname.startsWith("/handler/");
   const isAdminRoute = request.nextUrl.pathname.startsWith("/admin");
 
+  // Let Stack Auth handle its own routes completely
+  if (isHandlerRoute) {
+    return NextResponse.next();
+  }
+
+  // Handle our custom auth pages
   if (isAuthPage) {
     if (isAuth) {
       return NextResponse.redirect(new URL("/dashboard", request.url));

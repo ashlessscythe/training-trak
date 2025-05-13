@@ -4,7 +4,9 @@ import {
   handleUserApproval,
 } from "@/lib/stack-auth-integration";
 import { bootstrapTeamsAndPermissions } from "@/lib/stack-bootstrap";
+import { setupPendingUserPermissions } from "@/lib/stack-bootstrap";
 import prisma from "@/lib/prisma";
+import { stackServerApp } from "@/stack";
 
 // Initialize Stack Auth on server startup
 bootstrapTeamsAndPermissions().catch(console.error);
@@ -35,7 +37,19 @@ export async function POST(request: NextRequest) {
         break;
 
       case "user.login":
-        // User login - could be used to sync data or track activity
+        // User login - check if this is an OAuth user that needs pending status
+        if (user.oauthProviders && user.oauthProviders.length > 0) {
+          // Get the user to check their current status
+          const stackUser = await stackServerApp.getUser(user.id);
+
+          // If user doesn't have a status in metadata, they're likely a new OAuth user
+          if (stackUser && !stackUser.clientReadOnlyMetadata?.status) {
+            console.log(
+              `New OAuth user detected: ${user.id}. Setting up pending permissions.`
+            );
+            await setupPendingUserPermissions(user.id);
+          }
+        }
         console.log(`User login: ${user.id}`);
         break;
 

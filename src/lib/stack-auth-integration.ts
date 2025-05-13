@@ -40,8 +40,31 @@ export async function handleNewUserRegistration(userId: string): Promise<void> {
 
     console.log(`Processing new user registration: ${email}`);
 
+    // Check if this is an OAuth user
+    const isOAuthUser =
+      stackUser.oauthProviders && stackUser.oauthProviders.length > 0;
+
     // Set up pending permissions in Stack Auth
+    // For OAuth users, we'll set a special status to indicate they came through OAuth
     await setupPendingUserPermissions(userId);
+
+    // If this is an OAuth user, update their metadata to indicate they came through OAuth
+    if (isOAuthUser) {
+      await stackUser.update({
+        clientReadOnlyMetadata: {
+          ...stackUser.clientReadOnlyMetadata,
+          status: "PENDING",
+          registrationType: "OAUTH",
+          oauthProvider: stackUser.oauthProviders?.[0]?.id || "unknown",
+          registeredAt: new Date().toISOString(),
+        },
+      });
+      console.log(
+        `OAuth user registration processed: ${email} via ${
+          stackUser.oauthProviders?.[0]?.id || "unknown"
+        }`
+      );
+    }
 
     console.log(`New user registration processed successfully: ${email}`);
   } catch (error) {

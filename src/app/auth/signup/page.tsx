@@ -153,7 +153,9 @@ export default function CustomSignUp() {
             Already have an account?{" "}
           </span>
           <Link
-            href="/handler/sign-in"
+            href={`/handler/sign-in?after_auth_return_to=${encodeURIComponent(
+              "/dashboard"
+            )}`}
             className="text-primary hover:underline"
           >
             Sign in
