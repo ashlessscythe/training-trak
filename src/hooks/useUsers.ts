@@ -207,6 +207,7 @@ export function useUsers({
   const {
     resources: users,
     isLoading,
+    error,
     isDialogOpen,
     selectedResource: selectedUser,
     filters,
@@ -258,6 +259,7 @@ export function useUsers({
   return {
     users,
     isLoading,
+    error,
     isDialogOpen,
     selectedUser,
     filters,

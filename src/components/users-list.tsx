@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Role, Site, Department, Position } from "@prisma/client";
 import { UserDialog } from "@/components/user-dialog";
+import { ErrorDialog } from "@/components/ui/error-dialog";
 import {
   Select,
   SelectContent,
@@ -11,7 +12,7 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { useUsers } from "@/hooks/useUsers";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { ListView } from "@/components/list-view";
 import { ViewModeToggle } from "@/components/view-mode-toggle";
 import { useListView } from "@/hooks/useListView";
@@ -36,6 +37,7 @@ export function UsersList({
   const {
     users,
     isLoading,
+    error,
     isDialogOpen,
     selectedUser,
     filters,
@@ -55,10 +57,52 @@ export function UsersList({
   } = useUsers({ siteId, sites, roles, departments, positions });
 
   const { viewMode, setViewMode, currentView } = useListView();
+  const [isErrorDialogOpen, setIsErrorDialogOpen] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     fetchUsers();
   }, [fetchUsers]);
+
+  useEffect(() => {
+    if (error) {
+      setErrorMessage(error);
+      setIsErrorDialogOpen(true);
+    }
+  }, [error]);
+
+  const handleCreateWithError = async (data: any) => {
+    try {
+      await handleCreate(data);
+    } catch (error) {
+      if (error instanceof Error) {
+        setErrorMessage(error.message);
+        setIsErrorDialogOpen(true);
+      }
+    }
+  };
+
+  const handleUpdateWithError = async (data: any) => {
+    try {
+      await handleUpdate(data);
+    } catch (error) {
+      if (error instanceof Error) {
+        setErrorMessage(error.message);
+        setIsErrorDialogOpen(true);
+      }
+    }
+  };
+
+  const handleDeleteWithError = async (id: string) => {
+    try {
+      await handleDelete(id);
+    } catch (error) {
+      if (error instanceof Error) {
+        setErrorMessage(error.message);
+        setIsErrorDialogOpen(true);
+      }
+    }
+  };
 
   if (isLoading) {
     return (
@@ -167,7 +211,7 @@ export function UsersList({
             <Button
               variant="destructive"
               size="sm"
-              onClick={() => handleDelete(user.id)}
+              onClick={() => handleDeleteWithError(user.id)}
             >
               Deactivate
             </Button>
@@ -231,7 +275,7 @@ export function UsersList({
                 <Button
                   variant="destructive"
                   size="sm"
-                  onClick={() => handleDelete(user.id)}
+                  onClick={() => handleDeleteWithError(user.id)}
                 >
                   Deactivate
                 </Button>
@@ -524,12 +568,22 @@ export function UsersList({
           setIsDialogOpen(false);
           setSelectedUser(undefined);
         }}
-        onSubmit={selectedUser ? handleUpdate : handleCreate}
+        onSubmit={selectedUser ? handleUpdateWithError : handleCreateWithError}
         sites={sites}
         departments={departments}
         positions={positions}
         user={selectedUser}
         title={selectedUser ? "Edit User" : "Create User"}
+      />
+
+      <ErrorDialog
+        isOpen={isErrorDialogOpen}
+        onClose={() => {
+          setIsErrorDialogOpen(false);
+          setErrorMessage(null);
+        }}
+        error={errorMessage || ""}
+        title="Error"
       />
     </div>
   );
