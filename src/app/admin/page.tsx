@@ -3,14 +3,30 @@
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
-import { redirect } from "next/navigation";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
 export default function AdminPage() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
+  const router = useRouter();
   const userRole = session?.user?.role;
 
+  useEffect(() => {
+    if (status === "authenticated" && !["OWNER", "ADMIN"].includes(userRole as string)) {
+      router.push("/dashboard");
+    }
+  }, [status, userRole, router]);
+
+  if (status === "loading") {
+    return (
+      <div className="container mx-auto py-10">
+        <div className="text-center">Loading...</div>
+      </div>
+    );
+  }
+
   if (!session || !["OWNER", "ADMIN"].includes(userRole as string)) {
-    redirect("/dashboard");
+    return null;
   }
 
   const adminLinks = [

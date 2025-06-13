@@ -1,55 +1,52 @@
+import { NextAuthOptions } from "next-auth";
 import { PrismaClient, Role, Site } from "@prisma/client";
-import { DefaultSession, NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
-import bcrypt from "bcryptjs";
+import { compare } from "bcrypt";
 
-declare module "next-auth" {
-  interface Session {
-    user: {
-      id: string;
-      role: Role;
-      site: Site;
-    } & DefaultSession["user"];
-  }
-
-  interface User {
-    role: Role;
-    site: Site;
-  }
-}
-
+// Initialize Prisma Client
 const prisma = new PrismaClient();
 
 export const authOptions: NextAuthOptions = {
+  session: {
+    strategy: "jwt",
+  },
+  pages: {
+    signIn: "/login",
+  },
   providers: [
     CredentialsProvider({
-      name: "Credentials",
+      name: "credentials",
       credentials: {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
-          throw new Error("Missing credentials");
+          return null;
         }
 
         const user = await prisma.user.findUnique({
-          where: { email: credentials.email },
+          where: {
+            email: credentials.email,
+          },
           include: {
             site: true,
+            adminSites: {
+              include: {
+                site: true,
+              },
+            },
           },
         });
 
         if (!user) {
-          throw new Error("User not found");
+          return null;
         }
 
-        const isValid = await bcrypt.compare(
-          credentials.password,
-          user.password
-        );
-        if (!isValid) {
-          throw new Error("Invalid password");
+        const isPasswordValid = await compare(credentials.password, user.password);
+
+        if (!isPasswordValid) {
+          return null;
         }
 
         return {
@@ -58,32 +55,35 @@ export const authOptions: NextAuthOptions = {
           name: user.name,
           role: user.role,
           site: user.site,
+          adminSites: user.adminSites?.map((adminSite) => adminSite.site),
         };
       },
     }),
   ],
-  session: {
-    strategy: "jwt",
-  },
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        token.role = user.role;
-        token.site = user.site;
-        token.siteId = user.site?.id;
+        return {
+          ...token,
+          id: user.id,
+          role: user.role,
+          site: user.site,
+          adminSites: user.adminSites,
+        };
       }
       return token;
     },
     async session({ session, token }) {
-      if (token && session.user) {
-        session.user.id = token.sub as string;
-        session.user.role = token.role as Role;
-        session.user.site = token.site as Site;
-      }
-      return session;
+      return {
+        ...session,
+        user: {
+          ...session.user,
+          id: token.id as string,
+          role: token.role as Role,
+          site: token.site as Site,
+          adminSites: token.adminSites as Site[] | undefined,
+        },
+      };
     },
-  },
-  pages: {
-    signIn: "/auth/signin",
   },
 };

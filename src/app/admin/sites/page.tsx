@@ -149,6 +149,15 @@ export default function SitesPage() {
                     >
                       Edit
                     </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        window.location.href = `/admin/sites/${site.id}`;
+                      }}
+                    >
+                      Details
+                    </Button>
                     {site.isActive && (
                       <Button
                         variant="destructive"

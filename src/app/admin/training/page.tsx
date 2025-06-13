@@ -1,7 +1,7 @@
 "use client";
 
 import { useSession } from "next-auth/react";
-import { redirect } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TrainingWithRelations } from "@/hooks/useTraining";
@@ -10,7 +10,8 @@ import { AdminTrainingDetails } from "@/components/admin-training-details";
 import { getTrainingStatusColor, getTrainingStatusText } from "@/lib/utils";
 
 export default function AdminTrainingPage() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
+  const router = useRouter();
   const userRole = session?.user?.role;
   const [isLoading, setIsLoading] = useState(true);
   const [sites, setSites] = useState<any[]>([]);
@@ -19,10 +20,11 @@ export default function AdminTrainingPage() {
   >({});
   const [selectedSite, setSelectedSite] = useState<string | null>(null);
 
-  // Redirect non-admin users
-  if (!session || !["OWNER", "ADMIN"].includes(userRole as string)) {
-    redirect("/dashboard");
-  }
+  useEffect(() => {
+    if (status === "authenticated" && !["OWNER", "ADMIN"].includes(userRole as string)) {
+      router.push("/dashboard");
+    }
+  }, [status, userRole, router]);
 
   // Fetch all sites
   useEffect(() => {
@@ -37,8 +39,10 @@ export default function AdminTrainingPage() {
       }
     };
 
-    fetchSites();
-  }, []);
+    if (status === "authenticated" && ["OWNER", "ADMIN"].includes(userRole as string)) {
+      fetchSites();
+    }
+  }, [status, userRole]);
 
   // Fetch all trainings
   useEffect(() => {
@@ -72,6 +76,18 @@ export default function AdminTrainingPage() {
       fetchAllTrainings();
     }
   }, [sites]);
+
+  if (status === "loading") {
+    return (
+      <div className="container mx-auto py-10">
+        <div className="text-center">Loading...</div>
+      </div>
+    );
+  }
+
+  if (!session || !["OWNER", "ADMIN"].includes(userRole as string)) {
+    return null;
+  }
 
   // Calculate statistics for each site
   const getSiteStats = (siteId: string) => {

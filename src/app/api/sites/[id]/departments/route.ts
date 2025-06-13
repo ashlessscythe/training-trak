@@ -4,14 +4,57 @@ import prisma from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
+async function checkUserAccess(siteId: string) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.email) {
+    return { error: "Unauthorized", status: 401 };
+  }
+
+  const currentUser = await prisma.user.findUnique({
+    where: { email: session.user.email },
+    include: {
+      adminSites: {
+        select: {
+          siteId: true
+        }
+      }
+    }
+  });
+
+  if (!currentUser) {
+    return { error: "Forbidden", status: 403 };
+  }
+
+  // Allow OWNER and ADMIN to access any site
+  if (["OWNER", "ADMIN"].includes(currentUser.role)) {
+    return { currentUser };
+  }
+
+  // For SITE_ADMIN, check if they have access to this site
+  if (currentUser.role === "SITE_ADMIN") {
+    const hasAccess = currentUser.adminSites?.some(site => site.siteId === siteId);
+    if (!hasAccess) {
+      return { error: "Forbidden", status: 403 };
+    }
+    return { currentUser };
+  }
+
+  // For other roles, check if they belong to this site
+  if (currentUser.siteId !== siteId) {
+    return { error: "Forbidden", status: 403 };
+  }
+
+  return { currentUser };
+}
+
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session) {
-      return new NextResponse("Unauthorized", { status: 401 });
-    }
-
     const id = request.nextUrl.pathname.split("/")[3];
+    const { error, status } = await checkUserAccess(id);
+    
+    if (error) {
+      return new NextResponse(error, { status });
+    }
 
     const departments = await prisma.department.findMany({
       where: {
@@ -36,14 +79,14 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session) {
-      return new NextResponse("Unauthorized", { status: 401 });
+    const id = request.nextUrl.pathname.split("/")[3];
+    const { error, status } = await checkUserAccess(id);
+    
+    if (error) {
+      return new NextResponse(error, { status });
     }
 
     const data = await request.json();
-
-    const id = request.nextUrl.pathname.split("/")[3];
 
     const department = await prisma.department.create({
       data: {
@@ -73,14 +116,14 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session) {
-      return new NextResponse("Unauthorized", { status: 401 });
+    const id = request.nextUrl.pathname.split("/")[3];
+    const { error, status } = await checkUserAccess(id);
+    
+    if (error) {
+      return new NextResponse(error, { status });
     }
 
     const data = await request.json();
-
-    const id = request.nextUrl.pathname.split("/")[3];
 
     const department = await prisma.department.update({
       where: {
@@ -113,9 +156,11 @@ export async function PUT(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session) {
-      return new NextResponse("Unauthorized", { status: 401 });
+    const id = request.nextUrl.pathname.split("/")[3];
+    const { error, status } = await checkUserAccess(id);
+    
+    if (error) {
+      return new NextResponse(error, { status });
     }
 
     const { searchParams } = new URL(request.url);
@@ -124,8 +169,6 @@ export async function DELETE(request: NextRequest) {
     if (!departmentId) {
       return new NextResponse("Department ID is required", { status: 400 });
     }
-
-    const id = request.nextUrl.pathname.split("/")[3];
 
     const department = await prisma.department.delete({
       where: {

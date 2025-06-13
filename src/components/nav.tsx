@@ -1,8 +1,36 @@
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
-const baseNavigation = [
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useState, useEffect } from "react";
+import { Role, Site } from "@prisma/client";
+
+interface NavigationItem {
+  name: string;
+  href: string;
+  roles: Role[];
+  siteHref?: (siteId: string) => string;
+  siteRoles?: Role[];
+}
+
+interface SessionUser {
+  id: string;
+  role: Role;
+  site: Site;
+  adminSites?: Site[];
+  name?: string | null;
+  email?: string | null;
+  image?: string | null;
+}
+
+const baseNavigation: NavigationItem[] = [
   // Common for all logged-in users
   {
     name: "Dashboard",
@@ -20,7 +48,7 @@ const baseNavigation = [
   },
   {
     name: "Training",
-    href: "/admin/training", // Changed from "/training" to "/admin/training"
+    href: "/admin/training",
     roles: ["OWNER", "ADMIN"],
     siteHref: (siteId: string) => `/sites/${siteId}/training`,
     siteRoles: ["SITE_ADMIN", "SUPERVISOR", "USER"],
@@ -55,65 +83,80 @@ const baseNavigation = [
 
 export function Nav() {
   const pathname = usePathname();
+  const router = useRouter();
   const { data: session } = useSession();
-  const userRole = session?.user?.role || "PENDING";
-  // Add site users link for site admins
-  // Build navigation based on user role and site
-  const buildNavigation = () => {
-    let nav = [...baseNavigation];
-    const siteId = session?.user?.site?.id;
+  const [selectedSite, setSelectedSite] = useState<string>("");
 
-    // Add site-specific management links for site admins
-    if (userRole === "SITE_ADMIN" && siteId) {
-      nav.push({
-        name: "Site Users",
-        href: `/sites/${siteId}/users`,
-        roles: ["SITE_ADMIN"],
-      });
+  // Set initial selected site when session loads
+  useEffect(() => {
+    if (session?.user?.site) {
+      setSelectedSite(session.user.site.id);
     }
+  }, [session]);
 
-    // Convert navigation items to their final form
-    return nav.map((item) => {
-      // If user is a supervisor or regular user and item has a site-specific version
-      if (
-        ["SITE_ADMIN", "SUPERVISOR", "USER"].includes(userRole) &&
-        item.siteHref &&
-        item.siteRoles?.includes(userRole) &&
-        siteId
-      ) {
-        return {
-          ...item,
-          href: item.siteHref(siteId),
-          roles: item.siteRoles,
-        };
-      }
-      // For admin/owner, keep original href and roles
-      return {
-        name: item.name,
-        href: item.href,
-        roles: item.roles,
-      };
-    });
+  if (!session) return null;
+
+  const userRole = session.user.role;
+  const isSiteAdmin = userRole === "SITE_ADMIN";
+  const adminSites = (session.user as SessionUser).adminSites || [];
+
+  // Filter navigation items based on user role
+  const navigation = baseNavigation.filter((item) => {
+    if (isSiteAdmin) {
+      return item.siteRoles?.includes(userRole) || false;
+    }
+    return item.roles.includes(userRole);
+  });
+
+  // Handle site selection
+  const handleSiteChange = (siteId: string) => {
+    setSelectedSite(siteId);
+    // Update the URL to reflect the selected site
+    const currentPath = pathname.split("/");
+    if (currentPath[1] === "sites") {
+      currentPath[2] = siteId;
+      router.push(currentPath.join("/"));
+    }
   };
 
-  const filteredNavigation = buildNavigation().filter((item) =>
-    item.roles.includes(userRole as string)
-  );
-
   return (
-    <nav className="flex space-x-4 lg:space-x-6">
-      {filteredNavigation.map((item) => (
-        <Link
-          key={item.href}
-          href={item.href}
-          className={cn(
-            "text-sm font-medium transition-colors hover:text-primary",
-            pathname === item.href ? "text-foreground" : "text-muted-foreground"
-          )}
-        >
-          {item.name}
-        </Link>
-      ))}
+    <nav className="flex items-center space-x-4 lg:space-x-6">
+      {navigation.map((item) => {
+        const href = isSiteAdmin && item.siteHref && selectedSite
+          ? item.siteHref(selectedSite)
+          : item.href;
+
+        return (
+          <Link
+            key={item.name}
+            href={href}
+            className={cn(
+              "text-sm font-medium transition-colors hover:text-primary",
+              pathname === href
+                ? "text-foreground"
+                : "text-muted-foreground"
+            )}
+          >
+            {item.name}
+          </Link>
+        );
+      })}
+
+      {/* Site selector for site admins */}
+      {isSiteAdmin && adminSites.length > 0 && (
+        <Select value={selectedSite} onValueChange={handleSiteChange}>
+          <SelectTrigger className="w-[200px]">
+            <SelectValue placeholder="Select site" />
+          </SelectTrigger>
+          <SelectContent>
+            {adminSites.map((site: Site) => (
+              <SelectItem key={site.id} value={site.id}>
+                {site.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
     </nav>
   );
 }

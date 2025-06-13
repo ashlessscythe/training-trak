@@ -1,70 +1,74 @@
-import { withAuth } from "next-auth/middleware";
 import { NextResponse } from "next/server";
+import { getToken } from "next-auth/jwt";
+import { NextRequest } from "next/server";
 
-export default withAuth(
-  async function middleware(req) {
-    const token = req.nextauth.token as {
-      role?: string;
-      email?: string;
-      siteId?: string;
-    } | null;
-    const isAuth = !!token;
-    const isAuthPage =
-      req.nextUrl.pathname.startsWith("/auth/signin") ||
-      req.nextUrl.pathname.startsWith("/auth/signup");
-    const isAdminRoute = req.nextUrl.pathname.startsWith("/admin");
+export async function middleware(request: NextRequest) {
+  const token = await getToken({ req: request });
+  const pathname = request.nextUrl.pathname;
+  const searchParams = request.nextUrl.searchParams;
 
-    if (isAuthPage) {
-      if (isAuth) {
-        return NextResponse.redirect(new URL("/dashboard", req.url));
-      }
-      return null;
-    }
-
-    if (!isAuth) {
-      let from = req.nextUrl.pathname;
-      if (req.nextUrl.search) {
-        from += req.nextUrl.search;
-      }
-
-      return NextResponse.redirect(
-        new URL(`/auth/signin?from=${encodeURIComponent(from)}`, req.url)
-      );
-    }
-
-    // Handle admin route access
-    if (isAdminRoute && !["ADMIN", "OWNER"].includes(token?.role || "")) {
-      return NextResponse.redirect(new URL("/dashboard", req.url));
-    }
-
-    // Handle site admin access to their site's users
-    if (req.nextUrl.pathname.startsWith("/sites/")) {
-      const pathParts = req.nextUrl.pathname.split("/");
-      const siteId = pathParts[2];
-      const isSiteUsersPage = pathParts[3] === "users";
-
-      if (isSiteUsersPage) {
-        // Allow ADMIN/OWNER access to any site, but SITE_ADMIN only to their site
-        if (token?.role === "SITE_ADMIN" && token?.siteId !== siteId) {
-          return NextResponse.redirect(new URL("/dashboard", req.url));
-        }
-      }
-    }
-  },
-  {
-    callbacks: {
-      authorized: ({ token }) => !!token,
-    },
+  // Skip middleware for RSC requests and Next.js internal requests
+  if (searchParams.has('_rsc') || 
+      pathname.startsWith('/_next') || 
+      pathname.startsWith('/api/auth') ||
+      pathname.startsWith('/api/sites')) {
+    return NextResponse.next();
   }
-);
 
+  // If user is not logged in and trying to access protected routes
+  if (!token && !pathname.startsWith("/auth")) {
+    return NextResponse.redirect(new URL("/auth/signin", request.url));
+  }
+
+  // If user is logged in and trying to access auth pages
+  if (token && pathname.startsWith("/auth")) {
+    return NextResponse.redirect(new URL("/dashboard", request.url));
+  }
+
+  // Handle site-specific routes
+  if (pathname.startsWith("/sites/")) {
+    const siteId = pathname.split("/")[2];
+    const userRole = token?.role;
+    const userSiteId = token?.siteId;
+    const adminSites = token?.adminSites as { id: string }[] | undefined;
+
+    // Allow OWNER and ADMIN to access any site
+    if (["OWNER", "ADMIN"].includes(userRole as string)) {
+      return NextResponse.next();
+    }
+
+    // For SITE_ADMIN, check if they have access to this site
+    if (userRole === "SITE_ADMIN") {
+      // If no adminSites array, allow access (will be checked in API)
+      if (!adminSites) {
+        return NextResponse.next();
+      }
+      const hasAccess = adminSites.some(site => site.id === siteId);
+      if (!hasAccess) {
+        return NextResponse.redirect(new URL("/dashboard", request.url));
+      }
+      return NextResponse.next();
+    }
+
+    // For other roles, check if they belong to this site
+    if (userSiteId !== siteId) {
+      return NextResponse.redirect(new URL("/dashboard", request.url));
+    }
+  }
+
+  return NextResponse.next();
+}
+
+// Configure which paths the middleware should run on
 export const config = {
   matcher: [
-    "/dashboard/:path*",
-    "/admin/:path*",
-    "/documents/:path*",
-    "/sops/:path*",
-    "/training/:path*",
-    "/sites/:path*",
+    /*
+     * Match all request paths except for the ones starting with:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - public folder
+     */
+    '/((?!_next/static|_next/image|favicon.ico|public/).*)',
   ],
-};
+}
