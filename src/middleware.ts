@@ -15,6 +15,11 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Allow access to landing page for unauthenticated users
+  if (!token && pathname === "/") {
+    return NextResponse.next();
+  }
+
   // If user is not logged in and trying to access protected routes
   if (!token && !pathname.startsWith("/auth")) {
     return NextResponse.redirect(new URL("/auth/signin", request.url));

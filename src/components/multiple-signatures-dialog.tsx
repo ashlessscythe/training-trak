@@ -191,35 +191,6 @@ export function MultipleSignaturesDialog({
     }
   }, [trainingsToSign]);
 
-  // Convert generateIndividualPDFs to useCallback and move it before generateAndUploadMultiSignaturePDF
-  const generateIndividualPDFs = useCallback(
-    async (trainerName: string) => {
-      try {
-        // Import functions dynamically to avoid circular dependencies
-        const { generateSignaturePDF } = await import("@/lib/pdf");
-        const { uploadSignatureDocument } = await import(
-          "@/lib/document-upload"
-        );
-
-        // Generate and upload individual PDFs for each trainee
-        for (const training of trainingsToSign) {
-          const signatureBlob = signatures.get(training.id);
-          if (signatureBlob) {
-            const pdfBlob = await generateSignaturePDF(
-              training,
-              signatureBlob,
-              trainerName
-            );
-            await uploadSignatureDocument(pdfBlob, training, training.id);
-          }
-        }
-      } catch (error) {
-        console.error("Error generating individual PDFs:", error);
-      }
-    },
-    [trainingsToSign, signatures]
-  );
-
   // Helper function that takes the updated signatures array directly
   const generateMultiSignaturePDFWithSignatures = useCallback(
     async (trainerName: string, updatedSignatures: string[]) => {
@@ -333,11 +304,19 @@ export function MultipleSignaturesDialog({
           // Do NOT automatically generate PDF here - wait for user to click Submit
         }
       } catch (error) {
-        console.error("Error processing signature:", error);
-        alert("Error saving signature. Please try again.");
+        console.error("Error handling signature completion:", error);
+      } finally {
+        // Ensure the signature dialog is always closed
+        setIsSignDialogOpen(false);
       }
     },
-    [currentTrainingIndex, trainingsToSign, signatures, completedSignatures]
+    [
+      completedSignatures,
+      currentTrainingIndex,
+      signatures,
+      trainingsToSign,
+      generateMultiSignaturePDFWithSignatures,
+    ]
   );
 
   const getCurrentTraining = useCallback(() => {

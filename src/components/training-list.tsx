@@ -541,6 +541,19 @@ export function TrainingList({
               data.trainingId
             );
 
+            // Mark training as signed
+            await fetch("/api/trainings", {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                id: data.trainingId,
+                isSigned: true,
+                notes: `Signed by ${
+                  data.trainerName
+                } on ${new Date().toLocaleDateString()}`,
+              }),
+            });
+
             setIsSignDialogOpen(false);
             setSelectedTraining(undefined);
 
