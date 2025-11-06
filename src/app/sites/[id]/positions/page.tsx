@@ -8,7 +8,7 @@ import { Position, SOP } from "@prisma/client";
 interface PositionWithSOPs extends Position {
   sops?: SOP[];
 }
-import { PositionDialog } from "@/components/position-dialog";
+import { PositionDialog } from "@/components/features/positions/position-dialog";
 import { Input } from "@/components/ui/input";
 import {
   Select,

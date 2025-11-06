@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { SOPsList } from "@/components/sops-list";
+import { SOPsList } from "@/components/features/sops/sops-list";
 
 export default function SiteSopsPage() {
   const params = useParams();

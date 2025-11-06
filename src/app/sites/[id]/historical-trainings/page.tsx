@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { useParams, useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { TrainingStatus } from "@prisma/client";
-import { TrainingViewSelector } from "@/components/training-view-selector";
+import { TrainingViewSelector } from "@/components/features/trainings/training-view-selector";
 import { getTrainingStatusText } from "@/lib/utils";
 import {
   Select,

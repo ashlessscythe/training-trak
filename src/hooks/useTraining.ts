@@ -1,7 +1,7 @@
 import { TrainingProgress, TrainingStatus } from "@prisma/client";
 import { useResourceList } from "./useResourceList";
 import { useMemo, useState, useCallback } from "react";
-import { TrainingViewType } from "@/components/training-view-selector";
+import { TrainingViewType } from "@/components/features/trainings/training-view-selector";
 import { getTrainingStatusColor } from "@/lib/utils";
 
 interface TrainingFilters {
