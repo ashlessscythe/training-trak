@@ -1,11 +1,11 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { TrainingStatus } from "@prisma/client";
-import { TrainingDialog } from "@/components/training-dialog";
-import { SignatureDialog } from "@/components/signature-dialog";
-import { AssignTrainingDialog } from "@/components/assign-training-dialog";
-import { MultipleSignaturesDialog } from "@/components/multiple-signatures-dialog";
-import { TrainingViewSelector } from "@/components/training-view-selector";
+import { TrainingDialog } from "./training-dialog";
+import { SignatureDialog } from "./signature-dialog";
+import { AssignTrainingDialog } from "./assign-training-dialog";
+import { MultipleSignaturesDialog } from "./multiple-signatures-dialog";
+import { TrainingViewSelector } from "./training-view-selector";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { getTrainingStatusText } from "@/lib/utils";
 import {

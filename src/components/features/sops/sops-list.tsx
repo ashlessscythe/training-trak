@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Role, SOP } from "@prisma/client";
-import { SOPDialog } from "@/components/sop-dialog";
+import { SOPDialog } from "./sop-dialog";
 import {
   Select,
   SelectContent,

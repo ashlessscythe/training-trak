@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { SOP, Site } from "@prisma/client";
-import { DocumentsList } from "@/components/documents-list";
+import { DocumentsList } from "@/components/features/documents/documents-list";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Select,

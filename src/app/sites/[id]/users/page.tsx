@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { Site, Role, Department, Position } from "@prisma/client";
-import { UsersList } from "@/components/users-list";
+import { UsersList } from "@/components/features/users/users-list";
 
 export default function SiteUsersPage() {
   const params = useParams();

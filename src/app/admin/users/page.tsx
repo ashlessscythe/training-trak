@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Site, Role, Department, Position } from "@prisma/client";
-import { UsersList } from "@/components/users-list";
+import { UsersList } from "@/components/features/users/users-list";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Select,

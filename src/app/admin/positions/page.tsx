@@ -4,7 +4,7 @@ import { useEffect, useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Position, SOP } from "@prisma/client";
-import { PositionDialog } from "@/components/position-dialog";
+import { PositionDialog } from "@/components/features/positions/position-dialog";
 import { Input } from "@/components/ui/input";
 import {
   Select,

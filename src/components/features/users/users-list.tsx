@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Role, Site, Department, Position } from "@prisma/client";
-import { UserDialog } from "@/components/user-dialog";
+import { UserDialog } from "./user-dialog";
 import { ErrorDialog } from "@/components/ui/error-dialog";
 import {
   Select,

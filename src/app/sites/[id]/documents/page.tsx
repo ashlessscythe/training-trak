@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
-import { DocumentsList } from "@/components/documents-list";
+import { DocumentsList } from "@/components/features/documents/documents-list";
 import { useSiteSOPs } from "@/hooks/useSiteSOPs";
 
 export default function SiteDocumentsPage() {

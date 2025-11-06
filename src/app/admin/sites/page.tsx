@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Site } from "@prisma/client";
-import { SiteDialog } from "@/components/site-dialog";
+import { SiteDialog } from "@/components/features/sites/site-dialog";
 
 type SiteWithStats = Site & {
   stats: {

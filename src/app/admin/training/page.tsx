@@ -6,7 +6,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TrainingWithRelations } from "@/hooks/useTraining";
 import { TrainingStatus } from "@prisma/client";
-import { AdminTrainingDetails } from "@/components/admin-training-details";
+import { AdminTrainingDetails } from "@/components/features/trainings/admin-training-details";
 import { getTrainingStatusColor, getTrainingStatusText } from "@/lib/utils";
 
 export default function AdminTrainingPage() {

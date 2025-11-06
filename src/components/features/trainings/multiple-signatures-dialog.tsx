@@ -16,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { SignatureDialog } from "@/components/signature-dialog";
+import { SignatureDialog } from "./signature-dialog";
 import { TrainingProgress, TrainingStatus } from "@prisma/client";
 
 interface MultipleSignaturesDialogProps {

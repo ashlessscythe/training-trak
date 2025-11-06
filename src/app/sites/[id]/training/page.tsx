@@ -1,6 +1,6 @@
 "use client";
 
-import { TrainingList } from "@/components/training-list";
+import { TrainingList } from "@/components/features/trainings/training-list";
 import { useParams } from "next/navigation";
 
 export default function TrainingPage() {
