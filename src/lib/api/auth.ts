@@ -28,6 +28,7 @@ export async function getCurrentUser(): Promise<AuthContext | null> {
       name: true,
       role: true,
       siteId: true,
+      isActive: true,
       adminSites: {
         select: {
           id: true,
@@ -37,6 +38,11 @@ export async function getCurrentUser(): Promise<AuthContext | null> {
   });
 
   if (!user) {
+    return null;
+  }
+
+  // Block inactive users
+  if (!user.isActive) {
     return null;
   }
 
@@ -61,6 +67,11 @@ export async function requireAuth(): Promise<AuthContext> {
   
   if (!authContext) {
     throw new ApiError(ERROR_MESSAGES.UNAUTHORIZED, HTTP_STATUS.UNAUTHORIZED);
+  }
+
+  // Block PENDING users from accessing protected routes
+  if (authContext.user.role === "PENDING") {
+    throw new ApiError("Account pending approval", HTTP_STATUS.FORBIDDEN);
   }
 
   return authContext;

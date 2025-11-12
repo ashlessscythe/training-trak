@@ -740,33 +740,47 @@ async function main() {
       )}.${extension}`;
 
       // Generate appropriate content based on extension
-      let content: Buffer;
+      let content: Uint8Array;
       if (extension === "txt") {
-        content = Buffer.from(faker.lorem.paragraphs(3));
+        const buffer = Buffer.from(faker.lorem.paragraphs(3));
+        // Create a new ArrayBuffer and copy Buffer data to satisfy Prisma's strict typing
+        const arrayBuffer = new ArrayBuffer(buffer.length);
+        const view = new Uint8Array(arrayBuffer);
+        for (let i = 0; i < buffer.length; i++) {
+          view[i] = buffer[i];
+        }
+        content = view;
       } else {
         // For other types, create a larger buffer to simulate real documents
-        content = Buffer.from(
+        const buffer = Buffer.from(
           faker.lorem.paragraphs(10) + faker.lorem.paragraphs(10)
         );
+        // Create a new ArrayBuffer and copy Buffer data to satisfy Prisma's strict typing
+        const arrayBuffer = new ArrayBuffer(buffer.length);
+        const view = new Uint8Array(arrayBuffer);
+        for (let i = 0; i < buffer.length; i++) {
+          view[i] = buffer[i];
+        }
+        content = view;
       }
 
       return prisma.document.create({
         data: {
           name,
           type,
-          content,
+          content: content as Uint8Array<ArrayBuffer>,
           metadata: {
             fileSize: content.length,
             mimeType:
               extension === "txt"
                 ? "text/plain"
                 : extension === "pdf"
-                ? "application/pdf"
-                : extension === "docx"
-                ? "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                : extension === "xlsx"
-                ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                : "text/csv",
+                  ? "application/pdf"
+                  : extension === "docx"
+                    ? "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                    : extension === "xlsx"
+                      ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                      : "text/csv",
             uploadDate: new Date().toISOString(),
             tags: faker.helpers.arrayElements(
               ["important", "draft", "final", "archived"],

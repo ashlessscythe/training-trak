@@ -12,11 +12,21 @@ async function checkUserAccess(siteId: string, requiresWrite = false) {
 
   const currentUser = await prisma.user.findUnique({
     where: { email: session.user.email },
-    select: { id: true, role: true, siteId: true },
+    select: { id: true, role: true, siteId: true, isActive: true },
   });
 
   if (!currentUser) {
     return { error: "Forbidden", status: 403 };
+  }
+
+  // Block inactive users from accessing any API routes
+  if (!currentUser.isActive) {
+    return { error: "Account has been deactivated", status: 403 };
+  }
+
+  // Block PENDING users from accessing any API routes
+  if (currentUser.role === "PENDING") {
+    return { error: "Account pending approval", status: 403 };
   }
 
   // Only allow access if user belongs to this site or is OWNER/ADMIN

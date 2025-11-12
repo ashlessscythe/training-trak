@@ -34,7 +34,7 @@ export function Header() {
               <span className="hidden md:inline text-sm text-muted-foreground">
                 {session.user?.name}
               </span>
-              <Button variant="outline" size="sm" onClick={() => signOut()}>
+              <Button variant="outline" size="sm" onClick={() => signOut({ callbackUrl: window.location.origin })}>
                 Sign Out
               </Button>
             </>
@@ -87,7 +87,7 @@ export function Header() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => signOut()}
+                    onClick={() => signOut({ callbackUrl: window.location.origin })}
                     className="w-full mt-2"
                   >
                     Sign Out

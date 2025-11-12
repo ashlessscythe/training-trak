@@ -38,6 +38,16 @@ const handler = NextAuth({
           throw new Error("Invalid password");
         }
 
+        // Block inactive users from signing in
+        if (!user.isActive) {
+          throw new Error("Your account has been deactivated. Please contact an administrator.");
+        }
+
+        // Block PENDING users from signing in - they must be approved first
+        if (user.role === "PENDING") {
+          throw new Error("Your account is pending approval. Please wait for an administrator to approve your account.");
+        }
+
         return {
           id: user.id,
           email: user.email,

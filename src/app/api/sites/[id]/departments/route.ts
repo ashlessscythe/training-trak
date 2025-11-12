@@ -25,6 +25,16 @@ async function checkUserAccess(siteId: string) {
     return { error: "Forbidden", status: 403 };
   }
 
+  // Block inactive users from accessing any API routes
+  if (!currentUser.isActive) {
+    return { error: "Account has been deactivated", status: 403 };
+  }
+
+  // Block PENDING users from accessing any API routes
+  if (currentUser.role === "PENDING") {
+    return { error: "Account pending approval", status: 403 };
+  }
+
   // Allow OWNER and ADMIN to access any site
   if (["OWNER", "ADMIN"].includes(currentUser.role)) {
     return { currentUser };

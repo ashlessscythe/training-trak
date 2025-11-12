@@ -14,10 +14,24 @@ export async function GET() {
 
     const currentUser = await prisma.user.findUnique({
       where: { email: session.user.email },
-      select: { role: true },
+      select: { role: true, isActive: true },
     });
 
-    if (!currentUser || !["OWNER", "ADMIN"].includes(currentUser.role)) {
+    if (!currentUser) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    // Block inactive users from accessing any API routes
+    if (!currentUser.isActive) {
+      return NextResponse.json({ error: "Account has been deactivated" }, { status: 403 });
+    }
+
+    // Block PENDING users from accessing any API routes
+    if (currentUser.role === "PENDING") {
+      return NextResponse.json({ error: "Account pending approval" }, { status: 403 });
+    }
+
+    if (!["OWNER", "ADMIN"].includes(currentUser.role)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -75,10 +89,19 @@ export async function POST(req: NextRequest) {
 
     const currentUser = await prisma.user.findUnique({
       where: { email: session.user.email },
-      select: { role: true, siteId: true },
+      select: { role: true, siteId: true, isActive: true },
     });
 
-    if (!currentUser || !["OWNER", "ADMIN"].includes(currentUser.role)) {
+    if (!currentUser) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    // Block inactive users from accessing any API routes
+    if (!currentUser.isActive) {
+      return NextResponse.json({ error: "Account has been deactivated" }, { status: 403 });
+    }
+
+    if (!["OWNER", "ADMIN"].includes(currentUser.role)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -153,10 +176,24 @@ export async function PUT(req: NextRequest) {
 
     const currentUser = await prisma.user.findUnique({
       where: { email: session.user.email },
-      select: { role: true },
+      select: { role: true, isActive: true },
     });
 
-    if (!currentUser || !["OWNER", "ADMIN"].includes(currentUser.role)) {
+    if (!currentUser) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    // Block inactive users from accessing any API routes
+    if (!currentUser.isActive) {
+      return NextResponse.json({ error: "Account has been deactivated" }, { status: 403 });
+    }
+
+    // Block PENDING users from accessing any API routes
+    if (currentUser.role === "PENDING") {
+      return NextResponse.json({ error: "Account pending approval" }, { status: 403 });
+    }
+
+    if (!["OWNER", "ADMIN"].includes(currentUser.role)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -255,10 +292,19 @@ export async function DELETE(req: NextRequest) {
 
     const currentUser = await prisma.user.findUnique({
       where: { email: session.user.email },
-      select: { role: true },
+      select: { role: true, isActive: true },
     });
 
-    if (!currentUser || !["OWNER", "ADMIN"].includes(currentUser.role)) {
+    if (!currentUser) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    // Block inactive users from accessing any API routes
+    if (!currentUser.isActive) {
+      return NextResponse.json({ error: "Account has been deactivated" }, { status: 403 });
+    }
+
+    if (!["OWNER", "ADMIN"].includes(currentUser.role)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

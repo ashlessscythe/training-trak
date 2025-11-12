@@ -256,6 +256,11 @@ export default async function DashboardPage() {
     redirect("/auth/signin");
   }
 
+  // Redirect PENDING users to the pending approval page
+  if (user.role === "PENDING") {
+    redirect("/auth/pending");
+  }
+
   const metrics = await getMetrics(user.id, user.role, user.siteId);
   const isSiteAdmin =
     user.role === "SITE_ADMIN" ||

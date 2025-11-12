@@ -2,16 +2,18 @@ import { NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { NextRequest } from "next/server";
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const token = await getToken({ req: request });
   const pathname = request.nextUrl.pathname;
   const searchParams = request.nextUrl.searchParams;
 
   // Skip middleware for RSC requests and Next.js internal requests
-  if (searchParams.has('_rsc') || 
-      pathname.startsWith('/_next') || 
-      pathname.startsWith('/api/auth') ||
-      pathname.startsWith('/api/sites')) {
+  if (
+    searchParams.has("_rsc") ||
+    pathname.startsWith("/_next") ||
+    pathname.startsWith("/api/auth") ||
+    pathname.startsWith("/api/sites")
+  ) {
     return NextResponse.next();
   }
 
@@ -27,7 +29,16 @@ export async function middleware(request: NextRequest) {
 
   // If user is logged in and trying to access auth pages
   if (token && pathname.startsWith("/auth")) {
+    // Allow access to pending page for PENDING users
+    if (pathname === "/auth/pending") {
+      return NextResponse.next();
+    }
     return NextResponse.redirect(new URL("/dashboard", request.url));
+  }
+
+  // Block PENDING users from accessing any protected routes except the pending page
+  if (token && token.role === "PENDING" && pathname !== "/auth/pending") {
+    return NextResponse.redirect(new URL("/auth/pending", request.url));
   }
 
   // Handle site-specific routes
@@ -48,7 +59,7 @@ export async function middleware(request: NextRequest) {
       if (!adminSites) {
         return NextResponse.next();
       }
-      const hasAccess = adminSites.some(site => site.id === siteId);
+      const hasAccess = adminSites.some((site) => site.id === siteId);
       if (!hasAccess) {
         return NextResponse.redirect(new URL("/dashboard", request.url));
       }
@@ -74,6 +85,6 @@ export const config = {
      * - favicon.ico (favicon file)
      * - public folder
      */
-    '/((?!_next/static|_next/image|favicon.ico|public/).*)',
+    "/((?!_next/static|_next/image|favicon.ico|public/).*)",
   ],
-}
+};

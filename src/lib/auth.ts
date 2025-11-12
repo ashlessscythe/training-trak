@@ -49,6 +49,16 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
+        // Block inactive users from signing in
+        if (!user.isActive) {
+          return null;
+        }
+
+        // Block PENDING users from signing in - they must be approved first
+        if (user.role === "PENDING") {
+          return null;
+        }
+
         return {
           id: user.id,
           email: user.email,
