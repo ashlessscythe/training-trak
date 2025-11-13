@@ -16,6 +16,15 @@ import { useEffect, useState } from "react";
 import { ListView } from "@/components/list-view";
 import { ViewModeToggle } from "@/components/view-mode-toggle";
 import { useListView } from "@/hooks/useListView";
+import { useSession } from "next-auth/react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 interface UsersListProps {
   siteId?: string;
@@ -52,13 +61,20 @@ export function UsersList({
     handleCreate,
     handleUpdate,
     handleDelete,
+    handleDeletePermanent,
     getUserStats,
     formatRole,
   } = useUsers({ siteId, sites, roles, departments, positions });
 
+  const { data: session } = useSession();
+  const userRole = session?.user?.role;
+  const isAdmin = userRole === "OWNER" || userRole === "ADMIN";
+
   const { viewMode, setViewMode, currentView } = useListView();
   const [isErrorDialogOpen, setIsErrorDialogOpen] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<string | null>(null);
 
   useEffect(() => {
     fetchUsers();
@@ -102,6 +118,24 @@ export function UsersList({
         setIsErrorDialogOpen(true);
       }
     }
+  };
+
+  const handleDeletePermanentWithError = async (id: string) => {
+    try {
+      await handleDeletePermanent(id);
+      setIsDeleteDialogOpen(false);
+      setUserToDelete(null);
+    } catch (error) {
+      if (error instanceof Error) {
+        setErrorMessage(error.message);
+        setIsErrorDialogOpen(true);
+      }
+    }
+  };
+
+  const openDeleteDialog = (id: string) => {
+    setUserToDelete(id);
+    setIsDeleteDialogOpen(true);
   };
 
   if (isLoading) {
@@ -208,17 +242,28 @@ export function UsersList({
             Edit
           </Button>
           {user.isActive && (
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={() => handleDeleteWithError(user.id)}
-            >
-              Deactivate
-            </Button>
+            <>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => handleDeleteWithError(user.id)}
+              >
+                Deactivate
+              </Button>
+              {isAdmin && !["OWNER", "ADMIN"].includes(user.role) && (
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => openDeleteDialog(user.id)}
+                >
+                  Delete
+                </Button>
+              )}
+            </>
           )}
         </div>
       ),
-      className: "w-48",
+      className: "w-64",
     },
   ];
 
@@ -272,13 +317,24 @@ export function UsersList({
                 Edit
               </Button>
               {user.isActive && (
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => handleDeleteWithError(user.id)}
-                >
-                  Deactivate
-                </Button>
+                <>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => handleDeleteWithError(user.id)}
+                  >
+                    Deactivate
+                  </Button>
+                  {isAdmin && !["OWNER", "ADMIN"].includes(user.role) && (
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => openDeleteDialog(user.id)}
+                    >
+                      Delete
+                    </Button>
+                  )}
+                </>
               )}
             </div>
           </div>
@@ -585,6 +641,51 @@ export function UsersList({
         error={errorMessage || ""}
         title="Error"
       />
+
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Permanent Delete</DialogTitle>
+            <DialogDescription className="space-y-3">
+              <p>
+                Are you sure you want to permanently delete this user? This action
+                cannot be undone and will remove all user data from the system.
+              </p>
+              <div className="bg-amber-50 border border-amber-200 rounded-md p-3 mt-3">
+                <p className="text-sm text-amber-800 font-medium">
+                  ⚠️ Consider deactivating instead
+                </p>
+                <p className="text-sm text-amber-700 mt-1">
+                  Deactivating preserves full training history, documents, and audit trails
+                  while preventing the user from accessing the system. Permanent deletion
+                  will reassign records to an admin user and may impact historical accuracy.
+                </p>
+              </div>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsDeleteDialogOpen(false);
+                setUserToDelete(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                if (userToDelete) {
+                  handleDeletePermanentWithError(userToDelete);
+                }
+              }}
+            >
+              Delete Permanently
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

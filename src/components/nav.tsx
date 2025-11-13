@@ -63,6 +63,13 @@ const baseNavigation: NavigationItem[] = [
 
   // Configuration sections - for OWNER/ADMIN at global level
   {
+    name: "Users",
+    href: "/admin/users",
+    roles: ["OWNER", "ADMIN"],
+    siteHref: (siteId: string) => `/sites/${siteId}/users`,
+    siteRoles: ["SITE_ADMIN"],
+  },
+  {
     name: "Departments",
     href: "/admin/departments",
     roles: ["OWNER", "ADMIN"],

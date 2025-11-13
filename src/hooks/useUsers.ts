@@ -1,6 +1,6 @@
 import { Role, Site, User, Department, Position } from "@prisma/client";
 import { useResourceList } from "./useResourceList";
-import { useMemo } from "react";
+import { useMemo, useCallback } from "react";
 
 interface UserFilters {
   name: string;
@@ -190,14 +190,19 @@ export function useUsers({
           throw new Error(error.message || "Failed to update user");
         }
       },
-      onDeleteResource: async (id: string) => {
-        const response = await fetch(`${baseUrl}?id=${id}`, {
+      onDeleteResource: async (id: string, permanent: boolean = false) => {
+        const url = permanent
+          ? `${baseUrl}?id=${id}&permanent=true`
+          : `${baseUrl}?id=${id}`;
+        const response = await fetch(url, {
           method: "DELETE",
         });
 
         if (!response.ok) {
           const error = await response.json();
-          throw new Error(error.message || "Failed to delete user");
+          throw new Error(
+            error.error || error.message || "Failed to delete user"
+          );
         }
       },
     }),
@@ -256,6 +261,30 @@ export function useUsers({
     []
   );
 
+  // Permanent delete function for OWNER/ADMIN users
+  const handleDeletePermanent = useCallback(
+    async (id: string) => {
+      try {
+        const url = `${baseUrl}?id=${id}&permanent=true`;
+        const response = await fetch(url, {
+          method: "DELETE",
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(
+            error.error || error.message || "Failed to delete user"
+          );
+        }
+
+        await fetchUsers();
+      } catch (error: any) {
+        throw error;
+      }
+    },
+    [baseUrl, fetchUsers]
+  );
+
   return {
     users,
     isLoading,
@@ -274,6 +303,7 @@ export function useUsers({
     handleCreate,
     handleUpdate,
     handleDelete,
+    handleDeletePermanent,
     getUserStats,
     formatRole,
     sites,

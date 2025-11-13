@@ -23,12 +23,18 @@ export async function GET() {
 
     // Block inactive users from accessing any API routes
     if (!currentUser.isActive) {
-      return NextResponse.json({ error: "Account has been deactivated" }, { status: 403 });
+      return NextResponse.json(
+        { error: "Account has been deactivated" },
+        { status: 403 }
+      );
     }
 
     // Block PENDING users from accessing any API routes
     if (currentUser.role === "PENDING") {
-      return NextResponse.json({ error: "Account pending approval" }, { status: 403 });
+      return NextResponse.json(
+        { error: "Account pending approval" },
+        { status: 403 }
+      );
     }
 
     if (!["OWNER", "ADMIN"].includes(currentUser.role)) {
@@ -98,7 +104,10 @@ export async function POST(req: NextRequest) {
 
     // Block inactive users from accessing any API routes
     if (!currentUser.isActive) {
-      return NextResponse.json({ error: "Account has been deactivated" }, { status: 403 });
+      return NextResponse.json(
+        { error: "Account has been deactivated" },
+        { status: 403 }
+      );
     }
 
     if (!["OWNER", "ADMIN"].includes(currentUser.role)) {
@@ -185,12 +194,18 @@ export async function PUT(req: NextRequest) {
 
     // Block inactive users from accessing any API routes
     if (!currentUser.isActive) {
-      return NextResponse.json({ error: "Account has been deactivated" }, { status: 403 });
+      return NextResponse.json(
+        { error: "Account has been deactivated" },
+        { status: 403 }
+      );
     }
 
     // Block PENDING users from accessing any API routes
     if (currentUser.role === "PENDING") {
-      return NextResponse.json({ error: "Account pending approval" }, { status: 403 });
+      return NextResponse.json(
+        { error: "Account pending approval" },
+        { status: 403 }
+      );
     }
 
     if (!["OWNER", "ADMIN"].includes(currentUser.role)) {
@@ -301,7 +316,10 @@ export async function DELETE(req: NextRequest) {
 
     // Block inactive users from accessing any API routes
     if (!currentUser.isActive) {
-      return NextResponse.json({ error: "Account has been deactivated" }, { status: 403 });
+      return NextResponse.json(
+        { error: "Account has been deactivated" },
+        { status: 403 }
+      );
     }
 
     if (!["OWNER", "ADMIN"].includes(currentUser.role)) {
@@ -310,6 +328,7 @@ export async function DELETE(req: NextRequest) {
 
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
+    const permanent = searchParams.get("permanent") === "true";
 
     if (!id) {
       return NextResponse.json(
@@ -318,16 +337,135 @@ export async function DELETE(req: NextRequest) {
       );
     }
 
-    // Instead of deleting, we'll deactivate the user
+    // Check if user exists
+    const targetUser = await prisma.user.findUnique({
+      where: { id },
+      select: { id: true, role: true },
+    });
+
+    if (!targetUser) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    // Only OWNER and ADMIN can permanently delete users
+    if (permanent) {
+      if (!["OWNER", "ADMIN"].includes(currentUser.role)) {
+        return NextResponse.json(
+          { error: "Only OWNER and ADMIN can permanently delete users" },
+          { status: 403 }
+        );
+      }
+
+      // Prevent deleting OWNER or ADMIN users (safety check)
+      if (["OWNER", "ADMIN"].includes(targetUser.role)) {
+        return NextResponse.json(
+          { error: "Cannot delete users with OWNER or ADMIN roles" },
+          { status: 403 }
+        );
+      }
+
+      // Unlink/reassign related records instead of deleting them
+      await prisma.$transaction(async (tx) => {
+        // Get the user's name before deletion for traceability
+        const userToDelete = await tx.user.findUnique({
+          where: { id },
+          select: { name: true, email: true },
+        });
+
+        if (!userToDelete) {
+          throw new Error("User not found");
+        }
+
+        // Find an admin user to reassign records to
+        const adminUser = await tx.user.findFirst({
+          where: { role: { in: ["OWNER", "ADMIN"] }, isActive: true },
+          select: { id: true },
+        });
+
+        if (!adminUser) {
+          throw new Error(
+            "Cannot delete user: No admin user available to reassign records"
+          );
+        }
+
+        // Delete SiteAdmin records (these are just role assignments)
+        await tx.siteAdmin.deleteMany({
+          where: { userId: id },
+        });
+
+        // Get all training progress records to update with original user info
+        const trainingRecords = await tx.trainingProgress.findMany({
+          where: { userId: id },
+          select: { id: true, notes: true },
+        });
+
+        // Reassign TrainingProgress records to admin user and preserve original user info in notes
+        const deletionNote = `[Original trainee: ${userToDelete.name} (${userToDelete.email}) - User deleted on ${new Date().toISOString().split("T")[0]}]`;
+
+        for (const training of trainingRecords) {
+          const updatedNotes = training.notes
+            ? `${training.notes}\n\n${deletionNote}`
+            : deletionNote;
+
+          await tx.trainingProgress.update({
+            where: { id: training.id },
+            data: {
+              userId: adminUser.id,
+              notes: updatedNotes,
+            },
+          });
+        }
+
+        // Reassign Documents uploaded by this user to admin user (preserve documents)
+        await tx.document.updateMany({
+          where: { uploadedById: id },
+          data: { uploadedById: adminUser.id },
+        });
+
+        // Reassign SOPs created by this user to admin user
+        await tx.sOP.updateMany({
+          where: { createdById: id },
+          data: { createdById: adminUser.id },
+        });
+
+        // Reassign SOPs last modified by this user to admin user
+        await tx.sOP.updateMany({
+          where: { lastModifiedById: id },
+          data: { lastModifiedById: adminUser.id },
+        });
+
+        // Finally, delete the user
+        await tx.user.delete({
+          where: { id },
+        });
+      });
+
+      return NextResponse.json({ id, deleted: true });
+    }
+
+    // Soft delete (deactivate) the user
     const user = await prisma.user.update({
       where: { id },
       data: { isActive: false },
     });
 
     return NextResponse.json(user);
-  } catch (error) {
+  } catch (error: any) {
+    console.error("Error deleting user:", error);
+
+    // Handle Prisma foreign key constraint errors
+    if (error.code === "P2003") {
+      return NextResponse.json(
+        {
+          error:
+            "Cannot delete user: User has related records that must be removed first",
+        },
+        { status: 400 }
+      );
+    }
+
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: error.message || "Internal server error" },
       { status: 500 }
     );
   }

@@ -15,17 +15,28 @@ export async function GET(req: NextRequest) {
 
     const currentUser = await prisma.user.findUnique({
       where: { email: session.user.email },
-      select: { role: true, siteId: true },
+      select: {
+        role: true,
+        siteId: true,
+        adminSites: {
+          select: { siteId: true },
+        },
+      },
     });
 
     if (!currentUser) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // Allow ADMIN/OWNER access to any site, but SITE_ADMIN only to their site
+    // Allow ADMIN/OWNER access to any site, but SITE_ADMIN only to their site(s)
     const siteId = getIdFromReq(req);
-    if (currentUser.role === "SITE_ADMIN" && currentUser.siteId !== siteId) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    if (currentUser.role === "SITE_ADMIN") {
+      const hasAccess =
+        currentUser.siteId === siteId ||
+        currentUser.adminSites.some((adminSite) => adminSite.siteId === siteId);
+      if (!hasAccess) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
     }
 
     const users = await prisma.user.findMany({
@@ -80,17 +91,30 @@ export async function POST(req: NextRequest) {
 
     const currentUser = await prisma.user.findUnique({
       where: { email: session.user.email },
-      select: { role: true, siteId: true },
+      select: {
+        role: true,
+        siteId: true,
+        adminSites: {
+          select: { siteId: true },
+        },
+      },
     });
 
     if (!currentUser) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // Allow ADMIN/OWNER access to any site, but SITE_ADMIN only to their site
+    // Allow ADMIN/OWNER access to any site, but SITE_ADMIN only to their site(s)
     const reqSiteId = getIdFromReq(req);
-    if (currentUser.role === "SITE_ADMIN" && currentUser.siteId !== reqSiteId) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    if (currentUser.role === "SITE_ADMIN") {
+      const hasAccess =
+        currentUser.siteId === reqSiteId ||
+        currentUser.adminSites.some(
+          (adminSite) => adminSite.siteId === reqSiteId
+        );
+      if (!hasAccess) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
     }
 
     const data = await req.json();
@@ -173,17 +197,30 @@ export async function PUT(req: NextRequest) {
 
     const currentUser = await prisma.user.findUnique({
       where: { email: session.user.email },
-      select: { role: true, siteId: true },
+      select: {
+        role: true,
+        siteId: true,
+        adminSites: {
+          select: { siteId: true },
+        },
+      },
     });
 
     if (!currentUser) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // Allow ADMIN/OWNER access to any site, but SITE_ADMIN only to their site
+    // Allow ADMIN/OWNER access to any site, but SITE_ADMIN only to their site(s)
     const reqSiteId = getIdFromReq(req);
-    if (currentUser.role === "SITE_ADMIN" && currentUser.siteId !== reqSiteId) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    if (currentUser.role === "SITE_ADMIN") {
+      const hasAccess =
+        currentUser.siteId === reqSiteId ||
+        currentUser.adminSites.some(
+          (adminSite) => adminSite.siteId === reqSiteId
+        );
+      if (!hasAccess) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
     }
 
     const data = await req.json();
@@ -307,21 +344,35 @@ export async function DELETE(req: NextRequest) {
 
     const currentUser = await prisma.user.findUnique({
       where: { email: session.user.email },
-      select: { role: true, siteId: true },
+      select: {
+        role: true,
+        siteId: true,
+        adminSites: {
+          select: { siteId: true },
+        },
+      },
     });
 
     if (!currentUser) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // Allow ADMIN/OWNER access to any site, but SITE_ADMIN only to their site
+    // Allow ADMIN/OWNER access to any site, but SITE_ADMIN only to their site(s)
     const reqSiteId = getIdFromReq(req);
-    if (currentUser.role === "SITE_ADMIN" && currentUser.siteId !== reqSiteId) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    if (currentUser.role === "SITE_ADMIN") {
+      const hasAccess =
+        currentUser.siteId === reqSiteId ||
+        currentUser.adminSites.some(
+          (adminSite) => adminSite.siteId === reqSiteId
+        );
+      if (!hasAccess) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
     }
 
     const { searchParams } = new URL(req.url);
     const userId = searchParams.get("id");
+    const permanent = searchParams.get("permanent") === "true";
 
     if (!userId) {
       return NextResponse.json(
@@ -354,16 +405,125 @@ export async function DELETE(req: NextRequest) {
       );
     }
 
-    // Instead of deleting, we'll deactivate the user
+    // Only OWNER and ADMIN can permanently delete users
+    if (permanent) {
+      if (!["OWNER", "ADMIN"].includes(currentUser.role)) {
+        return NextResponse.json(
+          { error: "Only OWNER and ADMIN can permanently delete users" },
+          { status: 403 }
+        );
+      }
+
+      // Prevent deleting OWNER or ADMIN users (safety check)
+      if (["OWNER", "ADMIN"].includes(targetUser.role)) {
+        return NextResponse.json(
+          { error: "Cannot delete users with OWNER or ADMIN roles" },
+          { status: 403 }
+        );
+      }
+
+      // Unlink/reassign related records instead of deleting them
+      await prisma.$transaction(async (tx) => {
+        // Get the user's name before deletion for traceability
+        const userToDelete = await tx.user.findUnique({
+          where: { id: userId },
+          select: { name: true, email: true },
+        });
+
+        if (!userToDelete) {
+          throw new Error("User not found");
+        }
+
+        // Find an admin user to reassign records to
+        const adminUser = await tx.user.findFirst({
+          where: { role: { in: ["OWNER", "ADMIN"] }, isActive: true },
+          select: { id: true },
+        });
+
+        if (!adminUser) {
+          throw new Error(
+            "Cannot delete user: No admin user available to reassign records"
+          );
+        }
+
+        // Delete SiteAdmin records (these are just role assignments)
+        await tx.siteAdmin.deleteMany({
+          where: { userId: userId },
+        });
+
+        // Get all training progress records to update with original user info
+        const trainingRecords = await tx.trainingProgress.findMany({
+          where: { userId: userId },
+          select: { id: true, notes: true },
+        });
+
+        // Reassign TrainingProgress records to admin user and preserve original user info in notes
+        const deletionNote = `[Original trainee: ${userToDelete.name} (${userToDelete.email}) - User deleted on ${new Date().toISOString().split("T")[0]}]`;
+
+        for (const training of trainingRecords) {
+          const updatedNotes = training.notes
+            ? `${training.notes}\n\n${deletionNote}`
+            : deletionNote;
+
+          await tx.trainingProgress.update({
+            where: { id: training.id },
+            data: {
+              userId: adminUser.id,
+              notes: updatedNotes,
+            },
+          });
+        }
+
+        // Reassign Documents uploaded by this user to admin user (preserve documents)
+        await tx.document.updateMany({
+          where: { uploadedById: userId },
+          data: { uploadedById: adminUser.id },
+        });
+
+        // Reassign SOPs created by this user to admin user
+        await tx.sOP.updateMany({
+          where: { createdById: userId },
+          data: { createdById: adminUser.id },
+        });
+
+        // Reassign SOPs last modified by this user to admin user
+        await tx.sOP.updateMany({
+          where: { lastModifiedById: userId },
+          data: { lastModifiedById: adminUser.id },
+        });
+
+        // Finally, delete the user
+        await tx.user.delete({
+          where: { id: userId },
+        });
+      });
+
+      return NextResponse.json({ id: userId, deleted: true });
+    }
+
+    // Soft delete (deactivate) the user
     const user = await prisma.user.update({
       where: { id: userId },
       data: { isActive: false },
     });
 
     return NextResponse.json(user);
-  } catch (error) {
+  } catch (error: any) {
+    console.error("Error deleting user:", error);
+
+    // Handle Prisma foreign key constraint errors
+    if (error.code === "P2003") {
+      return NextResponse.json(
+        {
+          error:
+            "Cannot delete user: User has related records that must be removed first",
+        },
+        { status: 400 }
+      );
+    }
+
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: error.message || "Internal server error" },
       { status: 500 }
     );
   }
