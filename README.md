@@ -60,6 +60,10 @@ The `.env.example` file contains all the necessary environment variables with pl
 - `NEXTAUTH_URL`: The base URL of your application (default: "http://localhost:3000")
 - `NEXTAUTH_SECRET`: A secret key for NextAuth.js (at least 32 characters)
 - `DATABASE_URL`: Your database connection string
+- `RESEND_API_KEY`: Your Resend API key for sending emails
+- `SMTP_FROM`: The email address to send emails from
+- `NEXT_PUBLIC_TURNSTILE_SITE_KEY`: Your Cloudflare Turnstile site key (public key)
+- `TURNSTILE_SECRET_KEY`: Your Cloudflare Turnstile secret key (for server-side verification)
 
 Never commit your actual `.env` file to version control.
 
@@ -105,6 +109,7 @@ Open [http://localhost:3000](http://localhost:3000) to view the application.
 - Secure password hashing
 - Protected API routes
 - Session management
+- Cloudflare Turnstile bot protection on signup forms
 
 ## License
 

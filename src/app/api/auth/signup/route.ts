@@ -6,6 +6,39 @@ import { EmailService } from "@/lib/email";
 
 const prisma = new PrismaClient();
 
+// Function to verify Turnstile token
+async function verifyTurnstileToken(token: string): Promise<boolean> {
+  const secretKey = process.env.TURNSTILE_SECRET_KEY;
+  
+  if (!secretKey) {
+    console.error("TURNSTILE_SECRET_KEY is not set");
+    return false;
+  }
+
+  if (!token) {
+    return false;
+  }
+
+  try {
+    const response = await fetch(
+      "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: `secret=${encodeURIComponent(secretKey)}&response=${encodeURIComponent(token)}`,
+      }
+    );
+
+    const result = await response.json();
+    return result.success === true;
+  } catch (error) {
+    console.error("Turnstile verification error:", error);
+    return false;
+  }
+}
+
 // Function to get admin and site admin emails
 async function getAdminEmails(siteId: string) {
   // Get all ADMIN users
@@ -43,11 +76,27 @@ async function getAdminEmails(siteId: string) {
 
 export async function POST(request: Request) {
   try {
-    const { email, password, name } = await request.json();
+    const { email, password, name, turnstileToken } = await request.json();
 
     if (!email || !password || !name) {
       return NextResponse.json(
         { error: "Missing required fields" },
+        { status: 400 }
+      );
+    }
+
+    // Verify Turnstile token
+    if (!turnstileToken) {
+      return NextResponse.json(
+        { error: "Security verification is required" },
+        { status: 400 }
+      );
+    }
+
+    const isTurnstileValid = await verifyTurnstileToken(turnstileToken);
+    if (!isTurnstileValid) {
+      return NextResponse.json(
+        { error: "Security verification failed. Please try again." },
         { status: 400 }
       );
     }
