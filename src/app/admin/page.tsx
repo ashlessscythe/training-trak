@@ -55,6 +55,11 @@ export default function AdminPage() {
       href: "/admin/training",
       description: "View training status across all sites",
     },
+    {
+      name: "Email Test",
+      href: "/admin/email-test",
+      description: "Test email templates with custom parameters",
+    },
   ];
 
   return (

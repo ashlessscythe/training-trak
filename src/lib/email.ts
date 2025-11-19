@@ -13,7 +13,11 @@ const fromEmail =
   process.env.SMTP_FROM || `${siteConfig.name}<noreply@example.com>`;
 
 // Email types
-export type EmailType = "registration" | "account-approval" | "password-reset";
+export type EmailType =
+  | "registration"
+  | "account-approval"
+  | "password-reset"
+  | "admin-notification";
 
 // Email service
 export class EmailService {
@@ -148,5 +152,88 @@ export class EmailService {
         resetLink,
       })
     );
+  }
+
+  /**
+   * Send a test email with custom parameters
+   * @param type Email type
+   * @param to Recipient email address
+   * @param params Custom parameters for the email template
+   * @returns Promise with the result of the email sending operation
+   */
+  static async sendTestEmail(
+    type: EmailType,
+    to: string,
+    params: {
+      // Registration email params
+      name?: string;
+      siteCode?: string;
+      siteName?: string;
+      // Account approval email params
+      role?: string;
+      loginUrl?: string;
+      // Password reset email params
+      resetLink?: string;
+      // Admin notification email params
+      userName?: string;
+      userEmail?: string;
+      adminDashboardUrl?: string;
+    }
+  ) {
+    const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
+
+    switch (type) {
+      case "registration":
+        return this.sendEmail(
+          to,
+          `[TEST] Welcome to ${siteConfig.name}`,
+          React.createElement(RegistrationEmail, {
+            name: params.name || "Test User",
+            siteCode: params.siteCode || "TEST",
+            siteName: params.siteName || "Test Site",
+          })
+        );
+
+      case "account-approval":
+        return this.sendEmail(
+          to,
+          `[TEST] ${siteConfig.name} - Account Approved`,
+          React.createElement(AccountApprovalEmail, {
+            name: params.name || "Test User",
+            siteName: params.siteName || "Test Site",
+            role: params.role || "USER",
+            loginUrl: params.loginUrl || `${baseUrl}/auth/signin`,
+          })
+        );
+
+      case "password-reset":
+        return this.sendEmail(
+          to,
+          `[TEST] ${siteConfig.name} - Password Reset`,
+          React.createElement(PasswordResetEmail, {
+            name: params.name || "Test User",
+            resetLink:
+              params.resetLink ||
+              `${baseUrl}/auth/reset-password?token=test-token&email=${encodeURIComponent(to)}`,
+          })
+        );
+
+      case "admin-notification":
+        return this.sendEmail(
+          to,
+          `[TEST] New User Registration - ${siteConfig.name}`,
+          React.createElement(AdminNotificationEmail, {
+            userName: params.userName || "Test User",
+            userEmail: params.userEmail || "test@example.com",
+            siteName: params.siteName || "Test Site",
+            siteCode: params.siteCode || "TEST",
+            adminDashboardUrl:
+              params.adminDashboardUrl || `${baseUrl}/admin/users`,
+          })
+        );
+
+      default:
+        return { success: false, error: "Invalid email type" };
+    }
   }
 }

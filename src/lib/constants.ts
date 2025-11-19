@@ -101,6 +101,7 @@ export const API_ROUTES = {
   },
   EMAIL: {
     BASE: "/api/email",
+    TEST: "/api/email/test",
   },
 } as const;
 
@@ -124,6 +125,7 @@ export const PAGE_ROUTES = {
     TRAINING: "/admin/training",
     DOCUMENTS: "/admin/documents",
     SOPS: "/admin/sops",
+    EMAIL_TEST: "/admin/email-test",
   },
   SITES: {
     USERS: (id: string) => `/sites/${id}/users`,
