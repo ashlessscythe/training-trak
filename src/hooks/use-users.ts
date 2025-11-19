@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { UserResponse } from "@/types/api";
 
 export function useUsers() {
@@ -6,7 +6,7 @@ export function useUsers() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -23,11 +23,11 @@ export function useUsers() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchUsers();
-  }, []);
+  }, [fetchUsers]);
 
   const createUser = async (userData: any) => {
     const response = await fetch("/api/users", {
@@ -94,7 +94,7 @@ export function useSiteUsers(siteId: string) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -111,13 +111,13 @@ export function useSiteUsers(siteId: string) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [siteId]);
 
   useEffect(() => {
     if (siteId) {
       fetchUsers();
     }
-  }, [siteId]);
+  }, [siteId, fetchUsers]);
 
   return {
     users,

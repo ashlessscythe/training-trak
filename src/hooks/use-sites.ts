@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { SiteResponse } from "@/types/api";
 
 export function useSites() {
@@ -6,7 +6,7 @@ export function useSites() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchSites = async () => {
+  const fetchSites = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -23,11 +23,11 @@ export function useSites() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchSites();
-  }, []);
+  }, [fetchSites]);
 
   const createSite = async (siteData: any) => {
     const response = await fetch("/api/sites", {
@@ -94,7 +94,7 @@ export function useSite(siteId: string) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchSite = async () => {
+  const fetchSite = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -111,13 +111,13 @@ export function useSite(siteId: string) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [siteId]);
 
   useEffect(() => {
     if (siteId) {
       fetchSite();
     }
-  }, [siteId]);
+  }, [siteId, fetchSite]);
 
   return {
     site,

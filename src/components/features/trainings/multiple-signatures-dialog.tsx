@@ -315,7 +315,6 @@ export function MultipleSignaturesDialog({
       currentTrainingIndex,
       signatures,
       trainingsToSign,
-      generateMultiSignaturePDFWithSignatures,
     ]
   );
 
